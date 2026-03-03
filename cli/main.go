@@ -23,13 +23,66 @@ const (
 	cyan   = "\033[36m"
 )
 
-func colorf(code, s string) string  { return code + s + reset }
-func id(s string) string            { return colorf(yellow+bold, s) }
-func header(s string) string        { return colorf(bold, s) }
-func label(s string) string         { return colorf(dim, s) }
-func errorf(s string) string        { return colorf(red, s) }
-func highlight(s string) string     { return colorf(green, s) }
-func commandf(s string) string      { return colorf(cyan, s) }
+func colorf(code, s string) string { return code + s + reset }
+func id(s string) string           { return colorf(yellow+bold, s) }
+func header(s string) string       { return colorf(bold, s) }
+func label(s string) string        { return colorf(dim, s) }
+func errorf(s string) string       { return colorf(red, s) }
+func highlight(s string) string    { return colorf(green, s) }
+func commandf(s string) string     { return colorf(cyan, s) }
+
+// printPage prints up to maxList items from the given list command starting at
+// offset. Returns the number of items printed and whether more items remain.
+func printPage(gtfs *gtfsparser.GTFS, cmd string, offset int) (printed int, hasMore bool) {
+	switch cmd {
+	case "routes":
+		total := len(gtfs.RouteData)
+		for i := offset; i < total; i++ {
+			r := gtfs.RouteData[i]
+			name := r.RouteLongName
+			if name == "" {
+				name = r.RouteShortName
+			}
+			fmt.Printf("  %-30s %s\n", id(r.RouteID), name)
+			printed++
+			if printed == maxList {
+				hasMore = i+1 < total
+				break
+			}
+		}
+	case "trips":
+		total := len(gtfs.TripData)
+		for i := offset; i < total; i++ {
+			t := gtfs.TripData[i]
+			routeID := ""
+			if t.RouteID != nil {
+				routeID = t.RouteID.RouteID
+			}
+			fmt.Printf("  %-35s %s %-18s %s\n",
+				id(t.TripID),
+				label("route:"), id(routeID),
+				t.TripHeadsign,
+			)
+			printed++
+			if printed == maxList {
+				hasMore = i+1 < total
+				break
+			}
+		}
+	case "stops":
+		total := len(gtfs.StopData)
+		for i := offset; i < total; i++ {
+			s := gtfs.StopData[i]
+			fmt.Printf("  %-30s %s\n", id(s.StopID), s.StopName)
+			printed++
+			if printed == maxList {
+				hasMore = i+1 < total
+				break
+			}
+		}
+	}
+	return printed, hasMore
+}
 
 func main() {
 	file := flag.String("f", "", "path to GTFS zip file")
@@ -60,6 +113,11 @@ func main() {
 		commandf("help"), commandf("quit"),
 	)
 
+	// Pagination state
+	pageCmd := ""
+	pageStart := 0  // start offset of the currently displayed page
+	pageOffset := 0 // start offset of the next page
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("\n" + colorf(cyan+bold, "gtfs> "))
@@ -78,22 +136,82 @@ func main() {
 
 		switch cmd {
 
-		case "routes":
-			printed := 0
-			for _, r := range gtfs.RouteData {
-				name := r.RouteLongName
-				if name == "" {
-					name = r.RouteShortName
-				}
-				fmt.Printf("  %-30s %s\n", id(r.RouteID), name)
-				printed++
-				if printed == maxList {
-					fmt.Printf("  %s\n", label(fmt.Sprintf("... (%d total)", len(gtfs.RouteData))))
-					break
-				}
+		case "routes", "trips", "stops":
+			pageCmd = cmd
+			pageStart = 0
+			pageOffset = 0
+			total := 0
+			switch cmd {
+			case "routes":
+				total = len(gtfs.RouteData)
+			case "trips":
+				total = len(gtfs.TripData)
+			case "stops":
+				total = len(gtfs.StopData)
+			}
+			n, hasMore := printPage(&gtfs, cmd, pageOffset)
+			pageOffset += n
+			if hasMore {
+				fmt.Printf("  %s\n", label(fmt.Sprintf("showing %d–%d of %d — type 'next' for more", pageStart+1, pageOffset, total)))
+			} else {
+				fmt.Printf("  %s\n", label(fmt.Sprintf("%d total", total)))
+				pageCmd = ""
 			}
 
+		case "next":
+			if pageCmd == "" {
+				fmt.Println(errorf("nothing to page — run routes, trips, or stops first"))
+				continue
+			}
+			total := 0
+			switch pageCmd {
+			case "routes":
+				total = len(gtfs.RouteData)
+			case "trips":
+				total = len(gtfs.TripData)
+			case "stops":
+				total = len(gtfs.StopData)
+			}
+			pageStart = pageOffset
+			n, hasMore := printPage(&gtfs, pageCmd, pageOffset)
+			pageOffset += n
+			if hasMore {
+				fmt.Printf("  %s\n", label(fmt.Sprintf("showing %d–%d of %d — type 'next' / 'prev' for more", pageStart+1, pageOffset, total)))
+			} else {
+				fmt.Printf("  %s\n", label(fmt.Sprintf("%d total — end of list", total)))
+				pageCmd = ""
+			}
+
+		case "prev":
+			if pageCmd == "" {
+				fmt.Println(errorf("nothing to page — run routes, trips, or stops first"))
+				continue
+			}
+			if pageStart == 0 {
+				fmt.Println(errorf("already at the beginning"))
+				continue
+			}
+			total := 0
+			switch pageCmd {
+			case "routes":
+				total = len(gtfs.RouteData)
+			case "trips":
+				total = len(gtfs.TripData)
+			case "stops":
+				total = len(gtfs.StopData)
+			}
+			pageOffset = pageStart
+			pageStart = max(0, pageStart-maxList)
+			n, hasMore := printPage(&gtfs, pageCmd, pageStart)
+			_ = n
+			hint := "type 'next' / 'prev' to navigate"
+			if !hasMore {
+				hint = "type 'next' for more"
+			}
+			fmt.Printf("  %s\n", label(fmt.Sprintf("showing %d–%d of %d — %s", pageStart+1, pageOffset, total, hint)))
+
 		case "route":
+			pageCmd = ""
 			if arg == "" {
 				fmt.Println(errorf("usage: route <route_id>"))
 				continue
@@ -121,26 +239,8 @@ func main() {
 				fmt.Printf("%s\n", errorf(fmt.Sprintf("route %q not found", arg)))
 			}
 
-		case "trips":
-			printed := 0
-			for _, t := range gtfs.TripData {
-				routeID := ""
-				if t.RouteID != nil {
-					routeID = t.RouteID.RouteID
-				}
-				fmt.Printf("  %-35s %s %-18s %s\n",
-					id(t.TripID),
-					label("route:"), id(routeID),
-					t.TripHeadsign,
-				)
-				printed++
-				if printed == maxList {
-					fmt.Printf("  %s\n", label(fmt.Sprintf("... (%d total)", len(gtfs.TripData))))
-					break
-				}
-			}
-
 		case "trip":
+			pageCmd = ""
 			if arg == "" {
 				fmt.Println(errorf("usage: trip <trip_id>"))
 				continue
@@ -174,18 +274,8 @@ func main() {
 				fmt.Printf("%s\n", errorf(fmt.Sprintf("trip %q not found", arg)))
 			}
 
-		case "stops":
-			printed := 0
-			for _, s := range gtfs.StopData {
-				fmt.Printf("  %-30s %s\n", id(s.StopID), s.StopName)
-				printed++
-				if printed == maxList {
-					fmt.Printf("  %s\n", label(fmt.Sprintf("... (%d total)", len(gtfs.StopData))))
-					break
-				}
-			}
-
 		case "stop":
+			pageCmd = ""
 			if arg == "" {
 				fmt.Println(errorf("usage: stop <stop_id>"))
 				continue
@@ -218,6 +308,8 @@ func main() {
 			fmt.Printf("  %-30s show stop times for a trip\n", commandf("trip <id>"))
 			fmt.Printf("  %-30s list all stops (first %d)\n", commandf("stops"), maxList)
 			fmt.Printf("  %-30s show routes serving a stop\n", commandf("stop <id>"))
+			fmt.Printf("  %-30s show next page of last list\n", commandf("next"))
+			fmt.Printf("  %-30s show previous page of last list\n", commandf("prev"))
 			fmt.Printf("  %-30s exit\n", commandf("quit / exit"))
 
 		case "quit", "exit":
