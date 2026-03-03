@@ -29,11 +29,32 @@ func main() {
 		fmt.Println("error parsing trips:", err)
 		return
 	}
+	if err := gtfs.ParseStop(); err != nil {
+		fmt.Println("error parsing stops:", err)
+		return
+	}
+	if err := gtfs.ParseStopTime(); err != nil {
+		fmt.Println("error parsing stop times:", err)
+		return
+	}
+	if err := gtfs.ParseFrequency(); err != nil {
+		fmt.Println("error parsing frequencies:", err)
+		return
+	}
+	if err := gtfs.ParseTransfer(); err != nil {
+		fmt.Println("error parsing transfers:", err)
+		return
+	}
 
+	fmt.Printf("Parsed %d agency(s)\n", len(gtfs.AgencyData))
+	fmt.Printf("Parsed %d route(s)\n", len(gtfs.RouteData))
 	fmt.Printf("Parsed %d calendar(s)\n", len(gtfs.CalendarData))
-	fmt.Printf("Parsed %d shape(s)\n", len(gtfs.ShapeData))
-	fmt.Printf("Parsed %d trip(s). First 5:\n", len(gtfs.TripData))
-	for i, t := range gtfs.TripData {
+	fmt.Printf("Parsed %d trip(s)\n", len(gtfs.TripData))
+	fmt.Printf("Parsed %d stop(s)\n", len(gtfs.StopData))
+	fmt.Printf("Parsed %d stop time(s)\n", len(gtfs.StopTimeData))
+	fmt.Printf("Parsed %d frequency(s)\n", len(gtfs.FrequencyData))
+	fmt.Printf("Parsed %d transfer(s). First 5:\n", len(gtfs.TransferData))
+	for i, t := range gtfs.TransferData {
 		if i >= 5 {
 			break
 		}

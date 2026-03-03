@@ -636,3 +636,261 @@ func (gtfs *GTFS) ParseShape() error {
 	gtfs.ShapeData = shapes
 	return nil
 }
+
+func (gtfs *GTFS) ParseStopTime() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var stopTimesFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "stop_times.txt" {
+			stopTimesFile = f
+			break
+		}
+	}
+	if stopTimesFile == nil {
+		return fmt.Errorf("stop_times.txt not found in %s", gtfs.FileName)
+	}
+
+	rc, err := stopTimesFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	// Build indexes for FK resolution
+	tripIndex := make(map[string]*Trip)
+	for i := range gtfs.TripData {
+		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
+	}
+	stopIndex := make(map[string]*Stop)
+	for i := range gtfs.StopData {
+		stopIndex[gtfs.StopData[i].stop_id] = &gtfs.StopData[i]
+	}
+
+	var stopTimes []StopTime
+	seen := make(map[string]bool) // (trip_id, stop_sequence) uniqueness
+	var duplicates []string
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		tripIDStr := getCol(row, col, "trip_id")
+		seqStr := getCol(row, col, "stop_sequence")
+
+		seq, err := strconv.Atoi(seqStr)
+		if err != nil {
+			return fmt.Errorf("invalid stop_sequence for trip_id %s: %w", tripIDStr, err)
+		}
+
+		pickupType, _ := strconv.Atoi(getCol(row, col, "pickup_type"))
+		dropOffType, _ := strconv.Atoi(getCol(row, col, "drop_off_type"))
+		contPickup, _ := strconv.Atoi(getCol(row, col, "continuous_pickup"))
+		contDropOff, _ := strconv.Atoi(getCol(row, col, "continuous_drop_off"))
+		distTraveled, _ := strconv.ParseFloat(getCol(row, col, "shape_dist_traveled"), 64)
+		timepoint, _ := strconv.Atoi(getCol(row, col, "timepoint"))
+
+		stopTime := StopTime{
+			trip_id:             tripIndex[tripIDStr],
+			arrival_time:        getCol(row, col, "arrival_time"),
+			departure_time:      getCol(row, col, "departure_time"),
+			stop_id:             stopIndex[getCol(row, col, "stop_id")],
+			stop_sequence:       seq,
+			stop_headsign:       getCol(row, col, "stop_headsign"),
+			pickup_type:         PickupDropOffType(pickupType),
+			drop_off_type:       PickupDropOffType(dropOffType),
+			continuous_pickup:   PickupDropOffType(contPickup),
+			continuous_drop_off: PickupDropOffType(contDropOff),
+			shape_dist_traveled: distTraveled,
+			timepoint:           Timepoint(timepoint),
+		}
+
+		key := tripIDStr + "|" + seqStr
+		if seen[key] {
+			duplicates = append(duplicates, key)
+		} else {
+			seen[key] = true
+		}
+
+		stopTimes = append(stopTimes, stopTime)
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate (trip_id, stop_sequence) found: %v", duplicates)
+	}
+
+	gtfs.StopTimeData = stopTimes
+	return nil
+}
+
+func (gtfs *GTFS) ParseFrequency() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var frequenciesFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "frequencies.txt" {
+			frequenciesFile = f
+			break
+		}
+	}
+	if frequenciesFile == nil {
+		return nil // frequencies.txt is optional
+	}
+
+	rc, err := frequenciesFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	tripIndex := make(map[string]*Trip)
+	for i := range gtfs.TripData {
+		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
+	}
+
+	var frequencies []Frequency
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		headwaySecs, err := strconv.Atoi(getCol(row, col, "headway_secs"))
+		if err != nil {
+			return fmt.Errorf("invalid headway_secs for trip_id %s: %w", getCol(row, col, "trip_id"), err)
+		}
+		exactTimes, _ := strconv.Atoi(getCol(row, col, "exact_times"))
+
+		frequencies = append(frequencies, Frequency{
+			trip_id:      tripIndex[getCol(row, col, "trip_id")],
+			start_time:   getCol(row, col, "start_time"),
+			end_time:     getCol(row, col, "end_time"),
+			headway_secs: headwaySecs,
+			exact_times:  ExactTimes(exactTimes),
+		})
+	}
+
+	gtfs.FrequencyData = frequencies
+	return nil
+}
+
+func (gtfs *GTFS) ParseTransfer() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var transfersFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "transfers.txt" {
+			transfersFile = f
+			break
+		}
+	}
+	if transfersFile == nil {
+		return nil // transfers.txt is optional
+	}
+
+	rc, err := transfersFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	// Build indexes for FK resolution
+	stopIndex := make(map[string]*Stop)
+	for i := range gtfs.StopData {
+		stopIndex[gtfs.StopData[i].stop_id] = &gtfs.StopData[i]
+	}
+	routeIndex := make(map[string]*Route)
+	for i := range gtfs.RouteData {
+		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
+	}
+	tripIndex := make(map[string]*Trip)
+	for i := range gtfs.TripData {
+		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
+	}
+
+	var transfers []Transfer
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		transferType, _ := strconv.Atoi(getCol(row, col, "transfer_type"))
+		minTransferTime, _ := strconv.Atoi(getCol(row, col, "min_transfer_time"))
+
+		transfers = append(transfers, Transfer{
+			from_stop_id:      stopIndex[getCol(row, col, "from_stop_id")],
+			to_stop_id:        stopIndex[getCol(row, col, "to_stop_id")],
+			from_route_id:     routeIndex[getCol(row, col, "from_route_id")],
+			to_route_id:       routeIndex[getCol(row, col, "to_route_id")],
+			from_trip_id:      tripIndex[getCol(row, col, "from_trip_id")],
+			to_trip_id:        tripIndex[getCol(row, col, "to_trip_id")],
+			transfer_type:     TransferType(transferType),
+			min_transfer_time: minTransferTime,
+		})
+	}
+
+	gtfs.TransferData = transfers
+	return nil
+}
