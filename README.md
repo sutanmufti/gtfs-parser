@@ -8,6 +8,20 @@ A Go library for parsing and validating [GTFS Schedule](https://gtfs.org/schedul
 
 `gtfs-parser` reads a GTFS `.zip` file, parses each `.txt` file into idiomatic Go structs, and validates the feed against the GTFS Schedule specification. It is designed to be used as a library in other Go projects.
 
+**CLI**
+
+An interactive REPL for exploring a GTFS feed. Load a zip file and browse routes, trips, and stops with pagination — no code required.
+
+```sh
+go build -o gtfs-cli ./cli/
+```
+
+Running the CLI
+
+```sh
+./gtfs-cli -f gtfs.zip
+```
+
 ## Installation
 
 ```sh
@@ -153,11 +167,7 @@ Optional files return no error when absent.
 
 An interactive REPL for exploring a GTFS feed is included under `./cli`.
 
-**Build:**
 
-```sh
-go build -o gtfs-cli ./cli/
-```
 
 **Run:**
 
