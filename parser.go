@@ -1,7 +1,6 @@
 package gtfsparser
 
 import (
-	"archive/zip"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -41,46 +40,36 @@ func (gtfs *GTFS) ParseAll() error {
 	return nil
 }
 
-func (gtfs *GTFS) ParseAgency() error {
-	r, err := zip.OpenReader(gtfs.FileName)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	// Find agency.txt in the zip
-	var agencyFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "agency.txt" {
-			agencyFile = f
-			break
-		}
-	}
-	if agencyFile == nil {
-		return fmt.Errorf("agency.txt not found in %s", gtfs.FileName)
-	}
-
-	// Open and parse as CSV
-	rc, err := agencyFile.Open()
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-
-	reader := csv.NewReader(rc)
-
-	// Read header row and build column index map
+// readCSVHeaders reads the header row and returns a column index map.
+func readCSVHeaders(reader *csv.Reader) (map[string]int, error) {
 	headers, err := reader.Read()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	headers = sanitizeHeaders(headers)
 	col := make(map[string]int)
 	for i, h := range headers {
 		col[h] = i
 	}
+	return col, nil
+}
 
-	// Parse each row into an Agency
+func (gtfs *GTFS) ParseAgency() error {
+	rc, err := openFileFromZip(gtfs.FileName, "agency.txt")
+	if err != nil {
+		return err
+	}
+	if rc == nil {
+		return fmt.Errorf("agency.txt not found in %s", gtfs.FileName)
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	col, err := readCSVHeaders(reader)
+	if err != nil {
+		return err
+	}
+
 	var agencies []Agency
 	seen := make(map[string]bool)
 	var duplicates []string
@@ -123,45 +112,21 @@ func (gtfs *GTFS) ParseAgency() error {
 }
 
 func (gtfs *GTFS) ParseRoute() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "routes.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	// Find routes.txt in the zip
-	var routesFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "routes.txt" {
-			routesFile = f
-			break
-		}
-	}
-	if routesFile == nil {
+	if rc == nil {
 		return fmt.Errorf("routes.txt not found in %s", gtfs.FileName)
-	}
-
-	// Open and parse as CSV
-	rc, err := routesFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-
-	// Read header row and build column index map
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
 	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
-	}
 
-	// Parse each row into a Route
 	var routes []Route
 	seen := make(map[string]bool)
 	var duplicates []string
@@ -192,7 +157,6 @@ func (gtfs *GTFS) ParseRoute() error {
 			contDropOff = 0
 		}
 
-		// Resolve agency_id FK to matching Agency in gtfs.AgencyData
 		var agencyPtr *Agency
 		agencyIDStr := getCol(row, col, "agency_id")
 		for i := range gtfs.AgencyData {
@@ -236,58 +200,34 @@ func (gtfs *GTFS) ParseRoute() error {
 }
 
 func (gtfs *GTFS) ParseStop() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "stops.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	// Find stops.txt in the zip
-	var stopsFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "stops.txt" {
-			stopsFile = f
-			break
-		}
-	}
-	if stopsFile == nil {
+	if rc == nil {
 		return fmt.Errorf("stops.txt not found in %s", gtfs.FileName)
-	}
-
-	// Open and parse as CSV
-	rc, err := stopsFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-
-	// Read header row and build column index map
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
 	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
-	}
 
-	// Parse each row into a Stop
 	type stopRaw struct {
 		stop            Stop
 		parentStationID string
 		levelID         string
 	}
 	var rawStops []stopRaw
-	seen := make(map[string]int) // stop_id -> first seen line number
+	seen := make(map[string]int)
 	type duplicate struct {
 		stop_id string
 		line    int
 	}
 	var duplicates []duplicate
-	lineNum := 1 // start at 1 since header is line 1
+	lineNum := 1
 
 	for {
 		row, err := reader.Read()
@@ -310,11 +250,11 @@ func (gtfs *GTFS) ParseStop() error {
 
 		locType, err := strconv.Atoi(getCol(row, col, "location_type"))
 		if err != nil {
-			locType = 0 // default: stop/platform
+			locType = 0
 		}
 		wheelchair, err := strconv.Atoi(getCol(row, col, "wheelchair_boarding"))
 		if err != nil {
-			wheelchair = 0 // default: no info
+			wheelchair = 0
 		}
 
 		stop := Stop{
@@ -327,10 +267,10 @@ func (gtfs *GTFS) ParseStop() error {
 			zone_id:             getCol(row, col, "zone_id"),
 			stop_url:            getCol(row, col, "stop_url"),
 			location_type:       LocationType(locType),
-			parent_station:      nil, // resolved in second pass
+			parent_station:      nil,
 			stop_timezone:       getCol(row, col, "stop_timezone"),
 			wheelchair_boarding: WheelchairBoarding(wheelchair),
-			level_id:            nil, // resolved in second pass
+			level_id:            nil,
 			platform_code:       getCol(row, col, "platform_code"),
 		}
 
@@ -355,13 +295,11 @@ func (gtfs *GTFS) ParseStop() error {
 		return fmt.Errorf("%s", msg)
 	}
 
-	// Build stop index for parent_station resolution
 	stops := make([]Stop, len(rawStops))
 	for i, rs := range rawStops {
 		stops[i] = rs.stop
 	}
 
-	// Second pass: resolve parent_station and level_id FKs
 	stopIndex := make(map[string]*Stop)
 	for i := range stops {
 		stopIndex[stops[i].stop_id] = &stops[i]
@@ -384,45 +322,21 @@ func (gtfs *GTFS) ParseStop() error {
 }
 
 func (gtfs *GTFS) ParseTrip() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "trips.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	// Find trips.txt in the zip
-	var tripsFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "trips.txt" {
-			tripsFile = f
-			break
-		}
-	}
-	if tripsFile == nil {
+	if rc == nil {
 		return fmt.Errorf("trips.txt not found in %s", gtfs.FileName)
-	}
-
-	// Open and parse as CSV
-	rc, err := tripsFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-
-	// Read header row and build column index map
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
 	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
-	}
 
-	// Build indexes for FK resolution
 	routeIndex := make(map[string]*Route)
 	for i := range gtfs.RouteData {
 		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
@@ -436,7 +350,6 @@ func (gtfs *GTFS) ParseTrip() error {
 		shapeIndex[gtfs.ShapeData[i].shape_id] = &gtfs.ShapeData[i]
 	}
 
-	// Parse each row into a Trip
 	var trips []Trip
 	seen := make(map[string]bool)
 	var duplicates []string
@@ -494,39 +407,19 @@ func (gtfs *GTFS) ParseTrip() error {
 }
 
 func (gtfs *GTFS) ParseCalendar() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "calendar.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var calendarFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "calendar.txt" {
-			calendarFile = f
-			break
-		}
-	}
-	if calendarFile == nil {
+	if rc == nil {
 		return fmt.Errorf("calendar.txt not found in %s", gtfs.FileName)
-	}
-
-	rc, err := calendarFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	var calendars []Calendar
@@ -581,43 +474,23 @@ func (gtfs *GTFS) ParseCalendar() error {
 }
 
 func (gtfs *GTFS) ParseShape() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "shapes.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var shapesFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "shapes.txt" {
-			shapesFile = f
-			break
-		}
-	}
-	if shapesFile == nil {
-		return nil // shapes.txt is optional
-	}
-
-	rc, err := shapesFile.Open()
-	if err != nil {
-		return err
+	if rc == nil {
+		return nil // optional
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
 	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
-	}
 
 	var shapes []Shape
-	seen := make(map[string]bool) // tracks (shape_id, shape_pt_sequence) uniqueness
+	seen := make(map[string]bool)
 	var duplicates []string
 
 	for {
@@ -671,42 +544,21 @@ func (gtfs *GTFS) ParseShape() error {
 }
 
 func (gtfs *GTFS) ParseStopTime() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "stop_times.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var stopTimesFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "stop_times.txt" {
-			stopTimesFile = f
-			break
-		}
-	}
-	if stopTimesFile == nil {
+	if rc == nil {
 		return fmt.Errorf("stop_times.txt not found in %s", gtfs.FileName)
-	}
-
-	rc, err := stopTimesFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
 	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
-	}
 
-	// Build indexes for FK resolution
 	tripIndex := make(map[string]*Trip)
 	for i := range gtfs.TripData {
 		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
@@ -717,7 +569,7 @@ func (gtfs *GTFS) ParseStopTime() error {
 	}
 
 	var stopTimes []StopTime
-	seen := make(map[string]bool) // (trip_id, stop_sequence) uniqueness
+	seen := make(map[string]bool)
 	var duplicates []string
 
 	for {
@@ -778,39 +630,19 @@ func (gtfs *GTFS) ParseStopTime() error {
 }
 
 func (gtfs *GTFS) ParseFrequency() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "frequencies.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var frequenciesFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "frequencies.txt" {
-			frequenciesFile = f
-			break
-		}
-	}
-	if frequenciesFile == nil {
-		return nil // frequencies.txt is optional
-	}
-
-	rc, err := frequenciesFile.Open()
-	if err != nil {
-		return err
+	if rc == nil {
+		return nil // optional
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	tripIndex := make(map[string]*Trip)
@@ -849,42 +681,21 @@ func (gtfs *GTFS) ParseFrequency() error {
 }
 
 func (gtfs *GTFS) ParseTransfer() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "transfers.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var transfersFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "transfers.txt" {
-			transfersFile = f
-			break
-		}
-	}
-	if transfersFile == nil {
-		return nil // transfers.txt is optional
-	}
-
-	rc, err := transfersFile.Open()
-	if err != nil {
-		return err
+	if rc == nil {
+		return nil // optional
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
 	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
-	}
 
-	// Build indexes for FK resolution
 	stopIndex := make(map[string]*Stop)
 	for i := range gtfs.StopData {
 		stopIndex[gtfs.StopData[i].stop_id] = &gtfs.StopData[i]
@@ -929,38 +740,19 @@ func (gtfs *GTFS) ParseTransfer() error {
 }
 
 func (gtfs *GTFS) ParseCalendarDate() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "calendar_dates.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var calendarDatesFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "calendar_dates.txt" {
-			calendarDatesFile = f
-			break
-		}
-	}
-	if calendarDatesFile == nil {
+	if rc == nil {
 		return nil // optional if calendar.txt exists
-	}
-
-	rc, err := calendarDatesFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	calendarIndex := make(map[string]*Calendar)
@@ -992,38 +784,19 @@ func (gtfs *GTFS) ParseCalendarDate() error {
 }
 
 func (gtfs *GTFS) ParseLevel() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "levels.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var levelsFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "levels.txt" {
-			levelsFile = f
-			break
-		}
-	}
-	if levelsFile == nil {
+	if rc == nil {
 		return nil // optional
-	}
-
-	rc, err := levelsFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	var levels []Level
@@ -1068,38 +841,19 @@ func (gtfs *GTFS) ParseLevel() error {
 }
 
 func (gtfs *GTFS) ParsePathway() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "pathways.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var pathwaysFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "pathways.txt" {
-			pathwaysFile = f
-			break
-		}
-	}
-	if pathwaysFile == nil {
+	if rc == nil {
 		return nil // optional
-	}
-
-	rc, err := pathwaysFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	stopIndex := make(map[string]*Stop)
@@ -1161,38 +915,19 @@ func (gtfs *GTFS) ParsePathway() error {
 }
 
 func (gtfs *GTFS) ParseFareAttribute() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "fare_attributes.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var fareAttributesFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "fare_attributes.txt" {
-			fareAttributesFile = f
-			break
-		}
-	}
-	if fareAttributesFile == nil {
+	if rc == nil {
 		return nil // optional
-	}
-
-	rc, err := fareAttributesFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	agencyIndex := make(map[string]*Agency)
@@ -1249,38 +984,19 @@ func (gtfs *GTFS) ParseFareAttribute() error {
 }
 
 func (gtfs *GTFS) ParseFareRule() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "fare_rules.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var fareRulesFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "fare_rules.txt" {
-			fareRulesFile = f
-			break
-		}
-	}
-	if fareRulesFile == nil {
+	if rc == nil {
 		return nil // optional
-	}
-
-	rc, err := fareRulesFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	fareIndex := make(map[string]*FareAttribute)
@@ -1316,38 +1032,19 @@ func (gtfs *GTFS) ParseFareRule() error {
 }
 
 func (gtfs *GTFS) ParseFeedInfo() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "feed_info.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var feedInfoFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "feed_info.txt" {
-			feedInfoFile = f
-			break
-		}
-	}
-	if feedInfoFile == nil {
+	if rc == nil {
 		return nil // optional
-	}
-
-	rc, err := feedInfoFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	var feedInfos []FeedInfo
@@ -1378,38 +1075,19 @@ func (gtfs *GTFS) ParseFeedInfo() error {
 }
 
 func (gtfs *GTFS) ParseAttribution() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "attributions.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var attributionsFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "attributions.txt" {
-			attributionsFile = f
-			break
-		}
-	}
-	if attributionsFile == nil {
+	if rc == nil {
 		return nil // optional
-	}
-
-	rc, err := attributionsFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	agencyIndex := make(map[string]*Agency)
@@ -1459,38 +1137,19 @@ func (gtfs *GTFS) ParseAttribution() error {
 }
 
 func (gtfs *GTFS) ParseTranslation() error {
-	r, err := zip.OpenReader(gtfs.FileName)
+	rc, err := openFileFromZip(gtfs.FileName, "translations.txt")
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	var translationsFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "translations.txt" {
-			translationsFile = f
-			break
-		}
-	}
-	if translationsFile == nil {
+	if rc == nil {
 		return nil // optional
-	}
-
-	rc, err := translationsFile.Open()
-	if err != nil {
-		return err
 	}
 	defer rc.Close()
 
 	reader := csv.NewReader(rc)
-	headers, err := reader.Read()
+	col, err := readCSVHeaders(reader)
 	if err != nil {
 		return err
-	}
-	headers = sanitizeHeaders(headers)
-	col := make(map[string]int)
-	for i, h := range headers {
-		col[h] = i
 	}
 
 	var translations []Translation

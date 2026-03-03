@@ -1,9 +1,52 @@
 package gtfsparser
 
 import (
+	"archive/zip"
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
+
+// zipFileReader wraps both the zip archive and the file inside it,
+// closing both with a single Close() call.
+type zipFileReader struct {
+	zip  *zip.ReadCloser
+	file io.ReadCloser
+}
+
+func (r *zipFileReader) Read(p []byte) (n int, err error) {
+	return r.file.Read(p)
+}
+
+func (r *zipFileReader) Close() error {
+	r.file.Close()
+	return r.zip.Close()
+}
+
+// openFileFromZip opens a named file from within a zip archive.
+// Returns nil, nil if the file does not exist (caller treats it as optional).
+// Returns an io.ReadCloser that closes both the file and the zip on Close().
+func openFileFromZip(zipPath, fileName string) (io.ReadCloser, error) {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return nil, fmt.Errorf("opening zip %s: %w", zipPath, err)
+	}
+
+	for _, f := range r.File {
+		if f.Name == fileName {
+			rc, err := f.Open()
+			if err != nil {
+				r.Close()
+				return nil, fmt.Errorf("opening %s in zip: %w", fileName, err)
+			}
+			return &zipFileReader{zip: r, file: rc}, nil
+		}
+	}
+
+	r.Close()
+	return nil, nil // file not found — caller decides if optional or required
+}
 
 func sanitizeHeaders(headers []string) []string {
 	if len(headers) > 0 {
