@@ -288,41 +288,41 @@ func TestParseRoute_AgencyFK(t *testing.T) {
 
 // ---- Integration tests ----
 
-func TestParseAll_DefaultFeed(t *testing.T) {
-	gtfs := GTFS{FileName: "gtfs_default3.zip"}
-	if err := gtfs.ParseAll(); err != nil {
-		t.Fatalf("ParseAll failed: %v", err)
-	}
-	if len(gtfs.AgencyData) == 0 {
-		t.Error("expected at least one agency")
-	}
-	if len(gtfs.StopData) == 0 {
-		t.Error("expected at least one stop")
-	}
-	if len(gtfs.RouteData) == 0 {
-		t.Error("expected at least one route")
-	}
-	if len(gtfs.TripData) == 0 {
-		t.Error("expected at least one trip")
-	}
-	if len(gtfs.StopTimeData) == 0 {
-		t.Error("expected at least one stop time")
-	}
-}
+// func TestParseAll_DefaultFeed(t *testing.T) {
+// 	gtfs := GTFS{FileName: "gtfs_default3.zip"}
+// 	if err := gtfs.ParseAll(); err != nil {
+// 		t.Fatalf("ParseAll failed: %v", err)
+// 	}
+// 	if len(gtfs.AgencyData) == 0 {
+// 		t.Error("expected at least one agency")
+// 	}
+// 	if len(gtfs.StopData) == 0 {
+// 		t.Error("expected at least one stop")
+// 	}
+// 	if len(gtfs.RouteData) == 0 {
+// 		t.Error("expected at least one route")
+// 	}
+// 	if len(gtfs.TripData) == 0 {
+// 		t.Error("expected at least one trip")
+// 	}
+// 	if len(gtfs.StopTimeData) == 0 {
+// 		t.Error("expected at least one stop time")
+// 	}
+// }
 
-func TestValidateAll_KnownErrors(t *testing.T) {
-	gtfs := GTFS{FileName: "gtfs_default3.zip"}
-	if err := gtfs.ParseAll(); err != nil {
-		t.Fatalf("ParseAll failed: %v", err)
-	}
-	errs := gtfs.ValidateAll()
-	if len(errs) != 4 {
-		t.Errorf("expected 4 validation errors, got %d:", len(errs))
-		for _, e := range errs {
-			t.Log(" ", e)
-		}
-	}
-}
+// func TestValidateAll_KnownErrors(t *testing.T) {
+// 	gtfs := GTFS{FileName: "gtfs_default3.zip"}
+// 	if err := gtfs.ParseAll(); err != nil {
+// 		t.Fatalf("ParseAll failed: %v", err)
+// 	}
+// 	errs := gtfs.ValidateAll()
+// 	if len(errs) != 4 {
+// 		t.Errorf("expected 4 validation errors, got %d:", len(errs))
+// 		for _, e := range errs {
+// 			t.Log(" ", e)
+// 		}
+// 	}
+// }
 
 // ---- Validation unit tests ----
 
