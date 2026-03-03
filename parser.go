@@ -8,6 +8,39 @@ import (
 	"strconv"
 )
 
+func (gtfs *GTFS) ParseAll() error {
+	parsers := []struct {
+		name string
+		fn   func() error
+	}{
+		{"agency", gtfs.ParseAgency},
+		{"level", gtfs.ParseLevel},
+		{"calendar", gtfs.ParseCalendar},
+		{"shape", gtfs.ParseShape},
+		{"stop", gtfs.ParseStop},
+		{"route", gtfs.ParseRoute},
+		{"calendar_dates", gtfs.ParseCalendarDate},
+		{"trip", gtfs.ParseTrip},
+		{"stop_time", gtfs.ParseStopTime},
+		{"frequency", gtfs.ParseFrequency},
+		{"transfer", gtfs.ParseTransfer},
+		{"pathway", gtfs.ParsePathway},
+		{"fare_attribute", gtfs.ParseFareAttribute},
+		{"fare_rule", gtfs.ParseFareRule},
+		{"feed_info", gtfs.ParseFeedInfo},
+		{"attribution", gtfs.ParseAttribution},
+		{"translation", gtfs.ParseTranslation},
+	}
+
+	for _, p := range parsers {
+		if err := p.fn(); err != nil {
+			return fmt.Errorf("ParseAll: error parsing %s: %w", p.name, err)
+		}
+	}
+
+	return nil
+}
+
 func (gtfs *GTFS) ParseAgency() error {
 	r, err := zip.OpenReader(gtfs.FileName)
 	if err != nil {
@@ -892,5 +925,595 @@ func (gtfs *GTFS) ParseTransfer() error {
 	}
 
 	gtfs.TransferData = transfers
+	return nil
+}
+
+func (gtfs *GTFS) ParseCalendarDate() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var calendarDatesFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "calendar_dates.txt" {
+			calendarDatesFile = f
+			break
+		}
+	}
+	if calendarDatesFile == nil {
+		return nil // optional if calendar.txt exists
+	}
+
+	rc, err := calendarDatesFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	calendarIndex := make(map[string]*Calendar)
+	for i := range gtfs.CalendarData {
+		calendarIndex[gtfs.CalendarData[i].service_id] = &gtfs.CalendarData[i]
+	}
+
+	var calendarDates []CalendarDate
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		exceptionType, _ := strconv.Atoi(getCol(row, col, "exception_type"))
+
+		calendarDates = append(calendarDates, CalendarDate{
+			service_id:     calendarIndex[getCol(row, col, "service_id")],
+			date:           getCol(row, col, "date"),
+			exception_type: ExceptionType(exceptionType),
+		})
+	}
+
+	gtfs.CalendarDates = calendarDates
+	return nil
+}
+
+func (gtfs *GTFS) ParseLevel() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var levelsFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "levels.txt" {
+			levelsFile = f
+			break
+		}
+	}
+	if levelsFile == nil {
+		return nil // optional
+	}
+
+	rc, err := levelsFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	var levels []Level
+	seen := make(map[string]bool)
+	var duplicates []string
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		levelIndex, err := strconv.ParseFloat(getCol(row, col, "level_index"), 64)
+		if err != nil {
+			return fmt.Errorf("invalid level_index for level_id %s: %w", getCol(row, col, "level_id"), err)
+		}
+
+		level := Level{
+			level_id:    getCol(row, col, "level_id"),
+			level_index: levelIndex,
+			level_name:  getCol(row, col, "level_name"),
+		}
+
+		if seen[level.level_id] {
+			duplicates = append(duplicates, level.level_id)
+		} else {
+			seen[level.level_id] = true
+		}
+
+		levels = append(levels, level)
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate level_id(s) found: %v", duplicates)
+	}
+
+	gtfs.LevelData = levels
+	return nil
+}
+
+func (gtfs *GTFS) ParsePathway() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var pathwaysFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "pathways.txt" {
+			pathwaysFile = f
+			break
+		}
+	}
+	if pathwaysFile == nil {
+		return nil // optional
+	}
+
+	rc, err := pathwaysFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	stopIndex := make(map[string]*Stop)
+	for i := range gtfs.StopData {
+		stopIndex[gtfs.StopData[i].stop_id] = &gtfs.StopData[i]
+	}
+
+	var pathways []Pathway
+	seen := make(map[string]bool)
+	var duplicates []string
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		pathwayMode, _ := strconv.Atoi(getCol(row, col, "pathway_mode"))
+		isBidirectional, _ := strconv.Atoi(getCol(row, col, "is_bidirectional"))
+		length, _ := strconv.ParseFloat(getCol(row, col, "length"), 64)
+		traversalTime, _ := strconv.Atoi(getCol(row, col, "traversal_time"))
+		stairCount, _ := strconv.Atoi(getCol(row, col, "stair_count"))
+		maxSlope, _ := strconv.ParseFloat(getCol(row, col, "max_slope"), 64)
+		minWidth, _ := strconv.ParseFloat(getCol(row, col, "min_width"), 64)
+
+		pathway := Pathway{
+			pathway_id:             getCol(row, col, "pathway_id"),
+			from_stop_id:           stopIndex[getCol(row, col, "from_stop_id")],
+			to_stop_id:             stopIndex[getCol(row, col, "to_stop_id")],
+			pathway_mode:           PathwayMode(pathwayMode),
+			is_bidirectional:       isBidirectional,
+			length:                 length,
+			traversal_time:         traversalTime,
+			stair_count:            stairCount,
+			max_slope:              maxSlope,
+			min_width:              minWidth,
+			signposted_as:          getCol(row, col, "signposted_as"),
+			reversed_signposted_as: getCol(row, col, "reversed_signposted_as"),
+		}
+
+		if seen[pathway.pathway_id] {
+			duplicates = append(duplicates, pathway.pathway_id)
+		} else {
+			seen[pathway.pathway_id] = true
+		}
+
+		pathways = append(pathways, pathway)
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate pathway_id(s) found: %v", duplicates)
+	}
+
+	gtfs.PathwayData = pathways
+	return nil
+}
+
+func (gtfs *GTFS) ParseFareAttribute() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var fareAttributesFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "fare_attributes.txt" {
+			fareAttributesFile = f
+			break
+		}
+	}
+	if fareAttributesFile == nil {
+		return nil // optional
+	}
+
+	rc, err := fareAttributesFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	agencyIndex := make(map[string]*Agency)
+	for i := range gtfs.AgencyData {
+		agencyIndex[gtfs.AgencyData[i].agency_id] = &gtfs.AgencyData[i]
+	}
+
+	var fareAttributes []FareAttribute
+	seen := make(map[string]bool)
+	var duplicates []string
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		price, err := strconv.ParseFloat(getCol(row, col, "price"), 64)
+		if err != nil {
+			return fmt.Errorf("invalid price for fare_id %s: %w", getCol(row, col, "fare_id"), err)
+		}
+		paymentMethod, _ := strconv.Atoi(getCol(row, col, "payment_method"))
+		transfers, _ := strconv.Atoi(getCol(row, col, "transfers"))
+		transferDuration, _ := strconv.Atoi(getCol(row, col, "transfer_duration"))
+
+		fa := FareAttribute{
+			fare_id:           getCol(row, col, "fare_id"),
+			price:             price,
+			currency_type:     getCol(row, col, "currency_type"),
+			payment_method:    PaymentMethod(paymentMethod),
+			transfers:         FareTransfers(transfers),
+			agency_id:         agencyIndex[getCol(row, col, "agency_id")],
+			transfer_duration: transferDuration,
+		}
+
+		if seen[fa.fare_id] {
+			duplicates = append(duplicates, fa.fare_id)
+		} else {
+			seen[fa.fare_id] = true
+		}
+
+		fareAttributes = append(fareAttributes, fa)
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate fare_id(s) found: %v", duplicates)
+	}
+
+	gtfs.FareAttributes = fareAttributes
+	return nil
+}
+
+func (gtfs *GTFS) ParseFareRule() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var fareRulesFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "fare_rules.txt" {
+			fareRulesFile = f
+			break
+		}
+	}
+	if fareRulesFile == nil {
+		return nil // optional
+	}
+
+	rc, err := fareRulesFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	fareIndex := make(map[string]*FareAttribute)
+	for i := range gtfs.FareAttributes {
+		fareIndex[gtfs.FareAttributes[i].fare_id] = &gtfs.FareAttributes[i]
+	}
+	routeIndex := make(map[string]*Route)
+	for i := range gtfs.RouteData {
+		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
+	}
+
+	var fareRules []FareRule
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		fareRules = append(fareRules, FareRule{
+			fare_id:        fareIndex[getCol(row, col, "fare_id")],
+			route_id:       routeIndex[getCol(row, col, "route_id")],
+			origin_id:      getCol(row, col, "origin_id"),
+			destination_id: getCol(row, col, "destination_id"),
+			contains_id:    getCol(row, col, "contains_id"),
+		})
+	}
+
+	gtfs.FareRules = fareRules
+	return nil
+}
+
+func (gtfs *GTFS) ParseFeedInfo() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var feedInfoFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "feed_info.txt" {
+			feedInfoFile = f
+			break
+		}
+	}
+	if feedInfoFile == nil {
+		return nil // optional
+	}
+
+	rc, err := feedInfoFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	var feedInfos []FeedInfo
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		feedInfos = append(feedInfos, FeedInfo{
+			feed_publisher_name: getCol(row, col, "feed_publisher_name"),
+			feed_publisher_url:  getCol(row, col, "feed_publisher_url"),
+			feed_lang:           getCol(row, col, "feed_lang"),
+			default_lang:        getCol(row, col, "default_lang"),
+			feed_start_date:     getCol(row, col, "feed_start_date"),
+			feed_end_date:       getCol(row, col, "feed_end_date"),
+			feed_version:        getCol(row, col, "feed_version"),
+			feed_contact_email:  getCol(row, col, "feed_contact_email"),
+			feed_contact_url:    getCol(row, col, "feed_contact_url"),
+		})
+	}
+
+	gtfs.FeedInfo = feedInfos
+	return nil
+}
+
+func (gtfs *GTFS) ParseAttribution() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var attributionsFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "attributions.txt" {
+			attributionsFile = f
+			break
+		}
+	}
+	if attributionsFile == nil {
+		return nil // optional
+	}
+
+	rc, err := attributionsFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	agencyIndex := make(map[string]*Agency)
+	for i := range gtfs.AgencyData {
+		agencyIndex[gtfs.AgencyData[i].agency_id] = &gtfs.AgencyData[i]
+	}
+	routeIndex := make(map[string]*Route)
+	for i := range gtfs.RouteData {
+		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
+	}
+	tripIndex := make(map[string]*Trip)
+	for i := range gtfs.TripData {
+		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
+	}
+
+	var attributions []Attribution
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		isProducer, _ := strconv.Atoi(getCol(row, col, "is_producer"))
+		isOperator, _ := strconv.Atoi(getCol(row, col, "is_operator"))
+		isAuthority, _ := strconv.Atoi(getCol(row, col, "is_authority"))
+
+		attributions = append(attributions, Attribution{
+			attribution_id:    getCol(row, col, "attribution_id"),
+			agency_id:         agencyIndex[getCol(row, col, "agency_id")],
+			route_id:          routeIndex[getCol(row, col, "route_id")],
+			trip_id:           tripIndex[getCol(row, col, "trip_id")],
+			organization_name: getCol(row, col, "organization_name"),
+			is_producer:       isProducer,
+			is_operator:       isOperator,
+			is_authority:      isAuthority,
+			attribution_url:   getCol(row, col, "attribution_url"),
+			attribution_email: getCol(row, col, "attribution_email"),
+			attribution_phone: getCol(row, col, "attribution_phone"),
+		})
+	}
+
+	gtfs.Attributions = attributions
+	return nil
+}
+
+func (gtfs *GTFS) ParseTranslation() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var translationsFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "translations.txt" {
+			translationsFile = f
+			break
+		}
+	}
+	if translationsFile == nil {
+		return nil // optional
+	}
+
+	rc, err := translationsFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	var translations []Translation
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		translations = append(translations, Translation{
+			table_name:    getCol(row, col, "table_name"),
+			field_name:    getCol(row, col, "field_name"),
+			language:      getCol(row, col, "language"),
+			translation:   getCol(row, col, "translation"),
+			record_id:     getCol(row, col, "record_id"),
+			record_sub_id: getCol(row, col, "record_sub_id"),
+			field_value:   getCol(row, col, "field_value"),
+		})
+	}
+
+	gtfs.Translations = translations
 	return nil
 }
