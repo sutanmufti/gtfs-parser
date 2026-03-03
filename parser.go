@@ -89,6 +89,119 @@ func (gtfs *GTFS) ParseAgency() error {
 	return nil
 }
 
+func (gtfs *GTFS) ParseRoute() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	// Find routes.txt in the zip
+	var routesFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "routes.txt" {
+			routesFile = f
+			break
+		}
+	}
+	if routesFile == nil {
+		return fmt.Errorf("routes.txt not found in %s", gtfs.FileName)
+	}
+
+	// Open and parse as CSV
+	rc, err := routesFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+
+	// Read header row and build column index map
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	// Parse each row into a Route
+	var routes []Route
+	seen := make(map[string]bool)
+	var duplicates []string
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		routeType, err := strconv.Atoi(getCol(row, col, "route_type"))
+		if err != nil {
+			routeType = 0
+		}
+		sortOrder, err := strconv.Atoi(getCol(row, col, "route_sort_order"))
+		if err != nil {
+			sortOrder = 0
+		}
+		contPickup, err := strconv.Atoi(getCol(row, col, "continuous_pickup"))
+		if err != nil {
+			contPickup = 0
+		}
+		contDropOff, err := strconv.Atoi(getCol(row, col, "continuous_drop_off"))
+		if err != nil {
+			contDropOff = 0
+		}
+
+		// Resolve agency_id FK to matching Agency in gtfs.AgencyData
+		var agencyPtr *Agency
+		agencyIDStr := getCol(row, col, "agency_id")
+		for i := range gtfs.AgencyData {
+			if gtfs.AgencyData[i].agency_id == agencyIDStr {
+				agencyPtr = &gtfs.AgencyData[i]
+				break
+			}
+		}
+
+		route := Route{
+			route_id:            getCol(row, col, "route_id"),
+			agency_id:           agencyPtr,
+			route_short_name:    getCol(row, col, "route_short_name"),
+			route_long_name:     getCol(row, col, "route_long_name"),
+			route_desc:          getCol(row, col, "route_desc"),
+			route_type:          RouteType(routeType),
+			route_url:           getCol(row, col, "route_url"),
+			route_color:         getCol(row, col, "route_color"),
+			route_text_color:    getCol(row, col, "route_text_color"),
+			route_sort_order:    sortOrder,
+			continuous_pickup:   PickupDropOffType(contPickup),
+			continuous_drop_off: PickupDropOffType(contDropOff),
+			network_id:          getCol(row, col, "network_id"),
+		}
+
+		if seen[route.route_id] {
+			duplicates = append(duplicates, route.route_id)
+		} else {
+			seen[route.route_id] = true
+		}
+
+		routes = append(routes, route)
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate route_id(s) found: %v", duplicates)
+	}
+
+	gtfs.RouteData = routes
+	return nil
+}
+
 func (gtfs *GTFS) ParseStop() error {
 	r, err := zip.OpenReader(gtfs.FileName)
 	if err != nil {
