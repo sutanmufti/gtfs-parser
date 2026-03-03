@@ -65,14 +65,14 @@ func (gtfs *GTFS) validateAgency() []ValidationError {
 	var errs []ValidationError
 
 	for _, a := range gtfs.AgencyData {
-		id := a.agency_id
-		if a.agency_name == "" {
+		id := a.AgencyID
+		if a.AgencyName == "" {
 			errs = append(errs, ValidationError{File: "agency.txt", ID: id, Field: "agency_name", Message: "required field is empty"})
 		}
-		if a.agency_url == "" {
+		if a.AgencyURL == "" {
 			errs = append(errs, ValidationError{File: "agency.txt", ID: id, Field: "agency_url", Message: "required field is empty"})
 		}
-		if a.agency_timezone == "" {
+		if a.AgencyTimezone == "" {
 			errs = append(errs, ValidationError{File: "agency.txt", ID: id, Field: "agency_timezone", Message: "required field is empty"})
 		}
 	}
@@ -84,40 +84,40 @@ func (gtfs *GTFS) validateStops() []ValidationError {
 	var errs []ValidationError
 
 	for _, s := range gtfs.StopData {
-		id := s.stop_id
+		id := s.StopID
 		if id == "" {
 			errs = append(errs, ValidationError{File: "stops.txt", Field: "stop_id", Message: "required field is empty"})
 		}
 
 		// stop_name required for location_type 0 and 1
-		if s.location_type == StopPlatform || s.location_type == Station {
-			if s.stop_name == "" {
+		if s.LocationType == StopPlatform || s.LocationType == Station {
+			if s.StopName == "" {
 				errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "stop_name", Message: "required for location_type 0 and 1"})
 			}
 		}
 
 		// if one coordinate is provided, the other must be too
-		if s.stop_lat != nil && s.stop_lon == nil {
+		if s.StopLat != nil && s.StopLon == nil {
 			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "stop_lon", Message: "stop_lon is required when stop_lat is provided"})
 		}
-		if s.stop_lon != nil && s.stop_lat == nil {
+		if s.StopLon != nil && s.StopLat == nil {
 			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "stop_lat", Message: "stop_lat is required when stop_lon is provided"})
 		}
 
 		// coordinate range
-		if s.stop_lat != nil && (*s.stop_lat < -90 || *s.stop_lat > 90) {
-			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "stop_lat", Message: fmt.Sprintf("value %f out of range [-90, 90]", *s.stop_lat)})
+		if s.StopLat != nil && (*s.StopLat < -90 || *s.StopLat > 90) {
+			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "stop_lat", Message: fmt.Sprintf("value %f out of range [-90, 90]", *s.StopLat)})
 		}
-		if s.stop_lon != nil && (*s.stop_lon < -180 || *s.stop_lon > 180) {
-			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "stop_lon", Message: fmt.Sprintf("value %f out of range [-180, 180]", *s.stop_lon)})
+		if s.StopLon != nil && (*s.StopLon < -180 || *s.StopLon > 180) {
+			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "stop_lon", Message: fmt.Sprintf("value %f out of range [-180, 180]", *s.StopLon)})
 		}
 
 		// enum range
-		if s.location_type < StopPlatform || s.location_type > BoardingArea {
-			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "location_type", Message: fmt.Sprintf("invalid value %d, must be 0-4", s.location_type)})
+		if s.LocationType < StopPlatform || s.LocationType > BoardingArea {
+			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "location_type", Message: fmt.Sprintf("invalid value %d, must be 0-4", s.LocationType)})
 		}
-		if s.wheelchair_boarding < NoAccessibilityInfo || s.wheelchair_boarding > NotAccessible {
-			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "wheelchair_boarding", Message: fmt.Sprintf("invalid value %d, must be 0-2", s.wheelchair_boarding)})
+		if s.WheelchairBoarding < NoAccessibilityInfo || s.WheelchairBoarding > NotAccessible {
+			errs = append(errs, ValidationError{File: "stops.txt", ID: id, Field: "wheelchair_boarding", Message: fmt.Sprintf("invalid value %d, must be 0-2", s.WheelchairBoarding)})
 		}
 	}
 
@@ -134,17 +134,17 @@ func (gtfs *GTFS) validateRoutes() []ValidationError {
 	}
 
 	for _, r := range gtfs.RouteData {
-		id := r.route_id
+		id := r.RouteID
 		if id == "" {
 			errs = append(errs, ValidationError{File: "routes.txt", Field: "route_id", Message: "required field is empty"})
 		}
-		if r.route_short_name == "" && r.route_long_name == "" {
+		if r.RouteShortName == "" && r.RouteLongName == "" {
 			errs = append(errs, ValidationError{File: "routes.txt", ID: id, Field: "route_short_name/route_long_name", Message: "at least one of route_short_name or route_long_name is required"})
 		}
-		if !validRouteTypes[r.route_type] {
-			errs = append(errs, ValidationError{File: "routes.txt", ID: id, Field: "route_type", Message: fmt.Sprintf("invalid value %d", r.route_type)})
+		if !validRouteTypes[r.RouteType] {
+			errs = append(errs, ValidationError{File: "routes.txt", ID: id, Field: "route_type", Message: fmt.Sprintf("invalid value %d", r.RouteType)})
 		}
-		if r.agency_id == nil && len(gtfs.AgencyData) > 1 {
+		if r.AgencyID == nil && len(gtfs.AgencyData) > 1 {
 			errs = append(errs, ValidationError{File: "routes.txt", ID: id, Field: "agency_id", Message: "required when feed has multiple agencies"})
 		}
 	}
@@ -156,18 +156,18 @@ func (gtfs *GTFS) validateTrips() []ValidationError {
 	var errs []ValidationError
 
 	for _, t := range gtfs.TripData {
-		id := t.trip_id
+		id := t.TripID
 		if id == "" {
 			errs = append(errs, ValidationError{File: "trips.txt", Field: "trip_id", Message: "required field is empty"})
 		}
-		if t.route_id == nil {
+		if t.RouteID == nil {
 			errs = append(errs, ValidationError{File: "trips.txt", ID: id, Field: "route_id", Message: "references a route_id that does not exist"})
 		}
-		if t.service_id == nil {
+		if t.ServiceID == nil {
 			errs = append(errs, ValidationError{File: "trips.txt", ID: id, Field: "service_id", Message: "references a service_id that does not exist in calendar.txt or calendar_dates.txt"})
 		}
-		if t.direction_id < OutboundTravel || t.direction_id > InboundTravel {
-			errs = append(errs, ValidationError{File: "trips.txt", ID: id, Field: "direction_id", Message: fmt.Sprintf("invalid value %d, must be 0 or 1", t.direction_id)})
+		if t.DirectionID < OutboundTravel || t.DirectionID > InboundTravel {
+			errs = append(errs, ValidationError{File: "trips.txt", ID: id, Field: "direction_id", Message: fmt.Sprintf("invalid value %d, must be 0 or 1", t.DirectionID)})
 		}
 	}
 
@@ -186,27 +186,27 @@ func (gtfs *GTFS) validateStopTimes() []ValidationError {
 
 	for i, st := range gtfs.StopTimeData {
 		tripID := ""
-		if st.trip_id != nil {
-			tripID = st.trip_id.trip_id
+		if st.TripID != nil {
+			tripID = st.TripID.TripID
 		}
 
-		if st.trip_id == nil {
+		if st.TripID == nil {
 			errs = append(errs, ValidationError{File: "stop_times.txt", Field: "trip_id", Message: "references a trip_id that does not exist"})
 		}
-		if st.stop_id == nil {
+		if st.StopID == nil {
 			errs = append(errs, ValidationError{File: "stop_times.txt", ID: tripID, Field: "stop_id", Message: "references a stop_id that does not exist"})
 		}
 
 		// time format
-		if st.arrival_time != "" && !timeRegex.MatchString(st.arrival_time) {
-			errs = append(errs, ValidationError{File: "stop_times.txt", ID: tripID, Field: "arrival_time", Message: fmt.Sprintf("invalid format %q, expected HH:MM:SS", st.arrival_time)})
+		if st.ArrivalTime != "" && !timeRegex.MatchString(st.ArrivalTime) {
+			errs = append(errs, ValidationError{File: "stop_times.txt", ID: tripID, Field: "arrival_time", Message: fmt.Sprintf("invalid format %q, expected HH:MM:SS", st.ArrivalTime)})
 		}
-		if st.departure_time != "" && !timeRegex.MatchString(st.departure_time) {
-			errs = append(errs, ValidationError{File: "stop_times.txt", ID: tripID, Field: "departure_time", Message: fmt.Sprintf("invalid format %q, expected HH:MM:SS", st.departure_time)})
+		if st.DepartureTime != "" && !timeRegex.MatchString(st.DepartureTime) {
+			errs = append(errs, ValidationError{File: "stop_times.txt", ID: tripID, Field: "departure_time", Message: fmt.Sprintf("invalid format %q, expected HH:MM:SS", st.DepartureTime)})
 		}
 
 		if tripID != "" {
-			tripSeqs[tripID] = append(tripSeqs[tripID], seqEntry{seq: st.stop_sequence, idx: i})
+			tripSeqs[tripID] = append(tripSeqs[tripID], seqEntry{seq: st.StopSequence, idx: i})
 		}
 	}
 
@@ -234,20 +234,20 @@ func (gtfs *GTFS) validateCalendar() []ValidationError {
 	var errs []ValidationError
 
 	for _, c := range gtfs.CalendarData {
-		id := c.service_id
+		id := c.ServiceID
 		if id == "" {
 			errs = append(errs, ValidationError{File: "calendar.txt", Field: "service_id", Message: "required field is empty"})
 		}
-		if c.start_date == "" {
+		if c.StartDate == "" {
 			errs = append(errs, ValidationError{File: "calendar.txt", ID: id, Field: "start_date", Message: "required field is empty"})
 		}
-		if c.end_date == "" {
+		if c.EndDate == "" {
 			errs = append(errs, ValidationError{File: "calendar.txt", ID: id, Field: "end_date", Message: "required field is empty"})
 		}
 		// days must be 0 or 1
 		days := map[string]int{
-			"monday": c.monday, "tuesday": c.tuesday, "wednesday": c.wednesday,
-			"thursday": c.thursday, "friday": c.friday, "saturday": c.saturday, "sunday": c.sunday,
+			"monday": c.Monday, "tuesday": c.Tuesday, "wednesday": c.Wednesday,
+			"thursday": c.Thursday, "friday": c.Friday, "saturday": c.Saturday, "sunday": c.Sunday,
 		}
 		for field, val := range days {
 			if val != 0 && val != 1 {
@@ -255,11 +255,11 @@ func (gtfs *GTFS) validateCalendar() []ValidationError {
 			}
 		}
 		// validate date format YYYYMMDD
-		if c.start_date != "" && !isValidDate(c.start_date) {
-			errs = append(errs, ValidationError{File: "calendar.txt", ID: id, Field: "start_date", Message: fmt.Sprintf("invalid date format %q, expected YYYYMMDD", c.start_date)})
+		if c.StartDate != "" && !isValidDate(c.StartDate) {
+			errs = append(errs, ValidationError{File: "calendar.txt", ID: id, Field: "start_date", Message: fmt.Sprintf("invalid date format %q, expected YYYYMMDD", c.StartDate)})
 		}
-		if c.end_date != "" && !isValidDate(c.end_date) {
-			errs = append(errs, ValidationError{File: "calendar.txt", ID: id, Field: "end_date", Message: fmt.Sprintf("invalid date format %q, expected YYYYMMDD", c.end_date)})
+		if c.EndDate != "" && !isValidDate(c.EndDate) {
+			errs = append(errs, ValidationError{File: "calendar.txt", ID: id, Field: "end_date", Message: fmt.Sprintf("invalid date format %q, expected YYYYMMDD", c.EndDate)})
 		}
 	}
 

@@ -145,8 +145,8 @@ func TestParseAgency_Success(t *testing.T) {
 	if len(gtfs.AgencyData) != 2 {
 		t.Errorf("expected 2 agencies, got %d", len(gtfs.AgencyData))
 	}
-	if gtfs.AgencyData[0].agency_name != "Agency One" {
-		t.Errorf("unexpected agency_name: %q", gtfs.AgencyData[0].agency_name)
+	if gtfs.AgencyData[0].AgencyName != "Agency One" {
+		t.Errorf("unexpected AgencyName: %q", gtfs.AgencyData[0].AgencyName)
 	}
 }
 
@@ -160,8 +160,8 @@ func TestParseAgency_BOM(t *testing.T) {
 	if err := gtfs.ParseAgency(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if gtfs.AgencyData[0].agency_id != "A1" {
-		t.Errorf("BOM not stripped from header: agency_id = %q", gtfs.AgencyData[0].agency_id)
+	if gtfs.AgencyData[0].AgencyID != "A1" {
+		t.Errorf("BOM not stripped from header: AgencyID = %q", gtfs.AgencyData[0].AgencyID)
 	}
 }
 
@@ -192,11 +192,11 @@ func TestParseStop_Success(t *testing.T) {
 	if len(gtfs.StopData) != 2 {
 		t.Errorf("expected 2 stops, got %d", len(gtfs.StopData))
 	}
-	if gtfs.StopData[0].stop_lat == nil || *gtfs.StopData[0].stop_lat != 1.0 {
-		t.Errorf("expected stop_lat=1.0 for S1")
+	if gtfs.StopData[0].StopLat == nil || *gtfs.StopData[0].StopLat != 1.0 {
+		t.Errorf("expected StopLat=1.0 for S1")
 	}
-	if gtfs.StopData[1].stop_lat != nil {
-		t.Errorf("expected stop_lat=nil for S2")
+	if gtfs.StopData[1].StopLat != nil {
+		t.Errorf("expected StopLat=nil for S2")
 	}
 }
 
@@ -225,11 +225,11 @@ func TestParseStop_ParentStation(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	platform := gtfs.StopData[1]
-	if platform.parent_station == nil {
-		t.Fatal("expected parent_station to be resolved")
+	if platform.ParentStation == nil {
+		t.Fatal("expected ParentStation to be resolved")
 	}
-	if platform.parent_station.stop_id != "STATION" {
-		t.Errorf("expected parent stop_id 'STATION', got %q", platform.parent_station.stop_id)
+	if platform.ParentStation.StopID != "STATION" {
+		t.Errorf("expected parent StopID 'STATION', got %q", platform.ParentStation.StopID)
 	}
 }
 
@@ -278,11 +278,11 @@ func TestParseRoute_AgencyFK(t *testing.T) {
 	if len(gtfs.RouteData) != 1 {
 		t.Fatalf("expected 1 route, got %d", len(gtfs.RouteData))
 	}
-	if gtfs.RouteData[0].agency_id == nil {
-		t.Error("expected agency_id FK to be resolved")
+	if gtfs.RouteData[0].AgencyID == nil {
+		t.Error("expected AgencyID FK to be resolved")
 	}
-	if gtfs.RouteData[0].agency_id.agency_id != "A1" {
-		t.Errorf("expected agency_id 'A1', got %q", gtfs.RouteData[0].agency_id.agency_id)
+	if gtfs.RouteData[0].AgencyID.AgencyID != "A1" {
+		t.Errorf("expected AgencyID 'A1', got %q", gtfs.RouteData[0].AgencyID.AgencyID)
 	}
 }
 
@@ -341,7 +341,7 @@ func TestValidateRequiredFiles_AllMissing(t *testing.T) {
 func TestValidateAgency_MissingFields(t *testing.T) {
 	gtfs := GTFS{
 		AgencyData: []Agency{
-			{agency_id: "1", agency_name: "", agency_url: "", agency_timezone: ""},
+			{AgencyID: "1", AgencyName: "", AgencyURL: "", AgencyTimezone: ""},
 		},
 	}
 	errs := gtfs.validateAgency()
@@ -355,10 +355,10 @@ func TestValidateStops_LatLonPairing(t *testing.T) {
 	lon := 2.0
 	gtfs := GTFS{
 		StopData: []Stop{
-			{stop_id: "S1", stop_name: "Stop 1", stop_lat: &lat, stop_lon: nil}, // missing lon
-			{stop_id: "S2", stop_name: "Stop 2", stop_lat: nil, stop_lon: &lon}, // missing lat
-			{stop_id: "S3", stop_name: "Stop 3", stop_lat: &lat, stop_lon: &lon}, // valid pair
-			{stop_id: "S4", stop_name: "Stop 4", stop_lat: nil, stop_lon: nil},   // neither - valid
+			{StopID: "S1", StopName: "Stop 1", StopLat: &lat, StopLon: nil},  // missing lon
+			{StopID: "S2", StopName: "Stop 2", StopLat: nil, StopLon: &lon},  // missing lat
+			{StopID: "S3", StopName: "Stop 3", StopLat: &lat, StopLon: &lon}, // valid pair
+			{StopID: "S4", StopName: "Stop 4", StopLat: nil, StopLon: nil},   // neither - valid
 		},
 	}
 	errs := gtfs.validateStops()
@@ -377,8 +377,8 @@ func TestValidateStops_CoordinateRange(t *testing.T) {
 	goodLon := 10.0
 	gtfs := GTFS{
 		StopData: []Stop{
-			{stop_id: "S1", stop_name: "Stop 1", stop_lat: &badLat, stop_lon: &goodLon},
-			{stop_id: "S2", stop_name: "Stop 2", stop_lat: &goodLat, stop_lon: &badLon},
+			{StopID: "S1", StopName: "Stop 1", StopLat: &badLat, StopLon: &goodLon},
+			{StopID: "S2", StopName: "Stop 2", StopLat: &goodLat, StopLon: &badLon},
 		},
 	}
 	errs := gtfs.validateStops()
@@ -393,7 +393,7 @@ func TestValidateStops_CoordinateRange(t *testing.T) {
 func TestValidateRoutes_InvalidType(t *testing.T) {
 	gtfs := GTFS{
 		RouteData: []Route{
-			{route_id: "R1", route_short_name: "1", route_type: RouteType(99)},
+			{RouteID: "R1", RouteShortName: "1", RouteType: RouteType(99)},
 		},
 	}
 	errs := gtfs.validateRoutes()
@@ -405,7 +405,7 @@ func TestValidateRoutes_InvalidType(t *testing.T) {
 func TestValidateRoutes_MissingName(t *testing.T) {
 	gtfs := GTFS{
 		RouteData: []Route{
-			{route_id: "R1", route_short_name: "", route_long_name: "", route_type: Bus},
+			{RouteID: "R1", RouteShortName: "", RouteLongName: "", RouteType: Bus},
 		},
 	}
 	errs := gtfs.validateRoutes()
@@ -415,12 +415,12 @@ func TestValidateRoutes_MissingName(t *testing.T) {
 }
 
 func TestValidateRoutes_AgencyIDRequired(t *testing.T) {
-	a1 := Agency{agency_id: "A1"}
-	a2 := Agency{agency_id: "A2"}
+	a1 := Agency{AgencyID: "A1"}
+	a2 := Agency{AgencyID: "A2"}
 	gtfs := GTFS{
 		AgencyData: []Agency{a1, a2},
 		RouteData: []Route{
-			{route_id: "R1", route_short_name: "1", route_type: Bus, agency_id: nil},
+			{RouteID: "R1", RouteShortName: "1", RouteType: Bus, AgencyID: nil},
 		},
 	}
 	errs := gtfs.validateRoutes()
@@ -432,7 +432,7 @@ func TestValidateRoutes_AgencyIDRequired(t *testing.T) {
 func TestValidateTrips_MissingFK(t *testing.T) {
 	gtfs := GTFS{
 		TripData: []Trip{
-			{trip_id: "T1", route_id: nil, service_id: nil},
+			{TripID: "T1", RouteID: nil, ServiceID: nil},
 		},
 	}
 	errs := gtfs.validateTrips()
@@ -442,11 +442,11 @@ func TestValidateTrips_MissingFK(t *testing.T) {
 }
 
 func TestValidateTrips_InvalidDirectionID(t *testing.T) {
-	route := Route{route_id: "R1"}
-	cal := Calendar{service_id: "SVC1"}
+	route := Route{RouteID: "R1"}
+	cal := Calendar{ServiceID: "SVC1"}
 	gtfs := GTFS{
 		TripData: []Trip{
-			{trip_id: "T1", route_id: &route, service_id: &cal, direction_id: DirectionId(5)},
+			{TripID: "T1", RouteID: &route, ServiceID: &cal, DirectionID: DirectionId(5)},
 		},
 	}
 	errs := gtfs.validateTrips()
@@ -456,12 +456,12 @@ func TestValidateTrips_InvalidDirectionID(t *testing.T) {
 }
 
 func TestValidateStopTimes_InvalidTimeFormat(t *testing.T) {
-	trip := Trip{trip_id: "T1"}
-	stop := Stop{stop_id: "S1"}
+	trip := Trip{TripID: "T1"}
+	stop := Stop{StopID: "S1"}
 	gtfs := GTFS{
 		StopTimeData: []StopTime{
-			{trip_id: &trip, stop_id: &stop, stop_sequence: 1,
-				arrival_time: "25:70:00", departure_time: "08:00:00"},
+			{TripID: &trip, StopID: &stop, StopSequence: 1,
+				ArrivalTime: "25:70:00", DepartureTime: "08:00:00"},
 		},
 	}
 	errs := gtfs.validateStopTimes()
@@ -474,16 +474,16 @@ func TestValidateStopTimes_InvalidTimeFormat(t *testing.T) {
 }
 
 func TestValidateStopTimes_OutOfOrder(t *testing.T) {
-	trip := Trip{trip_id: "T1"}
-	stop := Stop{stop_id: "S1"}
+	trip := Trip{TripID: "T1"}
+	stop := Stop{StopID: "S1"}
 	gtfs := GTFS{
 		StopTimeData: []StopTime{
-			{trip_id: &trip, stop_id: &stop, stop_sequence: 3,
-				arrival_time: "08:00:00", departure_time: "08:00:00"},
-			{trip_id: &trip, stop_id: &stop, stop_sequence: 1,
-				arrival_time: "08:05:00", departure_time: "08:05:00"},
-			{trip_id: &trip, stop_id: &stop, stop_sequence: 1, // duplicate sequence
-				arrival_time: "08:10:00", departure_time: "08:10:00"},
+			{TripID: &trip, StopID: &stop, StopSequence: 3,
+				ArrivalTime: "08:00:00", DepartureTime: "08:00:00"},
+			{TripID: &trip, StopID: &stop, StopSequence: 1,
+				ArrivalTime: "08:05:00", DepartureTime: "08:05:00"},
+			{TripID: &trip, StopID: &stop, StopSequence: 1, // duplicate sequence
+				ArrivalTime: "08:10:00", DepartureTime: "08:10:00"},
 		},
 	}
 	errs := gtfs.validateStopTimes()
@@ -495,8 +495,8 @@ func TestValidateStopTimes_OutOfOrder(t *testing.T) {
 func TestValidateCalendar_InvalidDate(t *testing.T) {
 	gtfs := GTFS{
 		CalendarData: []Calendar{
-			{service_id: "SVC1", start_date: "baddate", end_date: "20251231",
-				monday: 1, tuesday: 1, wednesday: 1, thursday: 1, friday: 1},
+			{ServiceID: "SVC1", StartDate: "baddate", EndDate: "20251231",
+				Monday: 1, Tuesday: 1, Wednesday: 1, Thursday: 1, Friday: 1},
 		},
 	}
 	errs := gtfs.validateCalendar()
@@ -508,8 +508,8 @@ func TestValidateCalendar_InvalidDate(t *testing.T) {
 func TestValidateCalendar_InvalidDayValue(t *testing.T) {
 	gtfs := GTFS{
 		CalendarData: []Calendar{
-			{service_id: "SVC1", start_date: "20250101", end_date: "20251231",
-				monday: 2}, // must be 0 or 1
+			{ServiceID: "SVC1", StartDate: "20250101", EndDate: "20251231",
+				Monday: 2}, // must be 0 or 1
 		},
 	}
 	errs := gtfs.validateCalendar()

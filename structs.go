@@ -11,15 +11,15 @@ const (
 
 // Agency represents a transit agency from agency.txt.
 type Agency struct {
-	agency_id       string
-	agency_name     string
-	agency_url      string
-	agency_timezone string
-	agency_lang     string
-	agency_phone    string
-	agency_fare_url string
-	agency_email    string
-	cemv_support    CemvSupport
+	AgencyID       string
+	AgencyName     string
+	AgencyURL      string
+	AgencyTimezone string
+	AgencyLang     string
+	AgencyPhone    string
+	AgencyFareURL  string
+	AgencyEmail    string
+	CemvSupport    CemvSupport
 }
 
 // LocationType classifies the type of a stop location as defined in stops.txt.
@@ -43,23 +43,23 @@ const (
 )
 
 // Stop represents a stop, station, or other location from stops.txt.
-// stop_lat and stop_lon are pointers so that nil represents an absent value,
+// StopLat and StopLon are pointers so that nil represents an absent value,
 // distinguishable from a valid coordinate of zero.
 type Stop struct {
-	stop_id             string
-	stop_code           string
-	stop_name           string
-	stop_desc           string
-	stop_lat            *float64
-	stop_lon            *float64
-	zone_id             string
-	stop_url            string
-	location_type       LocationType
-	parent_station      *Stop
-	stop_timezone       string
-	wheelchair_boarding WheelchairBoarding
-	level_id            *Level
-	platform_code       string
+	StopID             string
+	StopCode           string
+	StopName           string
+	StopDesc           string
+	StopLat            *float64
+	StopLon            *float64
+	ZoneID             string
+	StopURL            string
+	LocationType       LocationType
+	ParentStation      *Stop
+	StopTimezone       string
+	WheelchairBoarding WheelchairBoarding
+	LevelID            *Level
+	PlatformCode       string
 }
 
 // RouteType classifies the mode of transport used on a route.
@@ -89,19 +89,19 @@ const (
 // Route represents a transit route from routes.txt.
 // A route is a group of trips displayed to riders as a single service.
 type Route struct {
-	route_id            string
-	agency_id           *Agency
-	route_short_name    string
-	route_long_name     string
-	route_desc          string
-	route_type          RouteType
-	route_url           string
-	route_color         string
-	route_text_color    string
-	route_sort_order    int
-	continuous_pickup   PickupDropOffType
-	continuous_drop_off PickupDropOffType
-	network_id          string
+	RouteID         string
+	AgencyID        *Agency
+	RouteShortName  string
+	RouteLongName   string
+	RouteDesc       string
+	RouteType       RouteType
+	RouteURL        string
+	RouteColor      string
+	RouteTextColor  string
+	RouteSortOrder  int
+	ContinuousPickup   PickupDropOffType
+	ContinuousDropOff  PickupDropOffType
+	NetworkID       string
 }
 
 // DirectionId indicates the direction of travel for a trip.
@@ -133,16 +133,16 @@ const (
 // Trip represents a journey made by a vehicle from trips.txt.
 // A trip is a sequence of stops that occurs at a specific time.
 type Trip struct {
-	route_id              *Route
-	service_id            *Calendar
-	trip_id               string
-	trip_headsign         string
-	trip_short_name       string
-	direction_id          DirectionId
-	block_id              string
-	shape_id              *Shape
-	wheelchair_accessible WheelchairAccessibleEnum
-	bikes_allowed         BikesAllowed
+	RouteID              *Route
+	ServiceID            *Calendar
+	TripID               string
+	TripHeadsign         string
+	TripShortName        string
+	DirectionID          DirectionId
+	BlockID              string
+	ShapeID              *Shape
+	WheelchairAccessible WheelchairAccessibleEnum
+	BikesAllowed         BikesAllowed
 }
 
 // Timepoint indicates the precision of arrival and departure times for a stop.
@@ -155,32 +155,32 @@ const (
 
 // StopTime represents a vehicle's arrival and departure at a stop from stop_times.txt.
 type StopTime struct {
-	trip_id             *Trip
-	arrival_time        string
-	departure_time      string
-	stop_id             *Stop
-	stop_sequence       int
-	stop_headsign       string
-	pickup_type         PickupDropOffType
-	drop_off_type       PickupDropOffType
-	continuous_pickup   PickupDropOffType
-	continuous_drop_off PickupDropOffType
-	shape_dist_traveled float64
-	timepoint           Timepoint
+	TripID             *Trip
+	ArrivalTime        string
+	DepartureTime      string
+	StopID             *Stop
+	StopSequence       int
+	StopHeadsign       string
+	PickupType         PickupDropOffType
+	DropOffType        PickupDropOffType
+	ContinuousPickup   PickupDropOffType
+	ContinuousDropOff  PickupDropOffType
+	ShapeDistTraveled  float64
+	Timepoint          Timepoint
 }
 
 // Calendar represents a regular weekly service schedule from calendar.txt.
 type Calendar struct {
-	service_id string
-	monday     int
-	tuesday    int
-	wednesday  int
-	thursday   int
-	friday     int
-	saturday   int
-	sunday     int
-	start_date string
-	end_date   string
+	ServiceID string
+	Monday    int
+	Tuesday   int
+	Wednesday int
+	Thursday  int
+	Friday    int
+	Saturday  int
+	Sunday    int
+	StartDate string
+	EndDate   string
 }
 
 // ExceptionType indicates whether service has been added or removed on a given date.
@@ -193,19 +193,19 @@ const (
 
 // CalendarDate represents an exception to a regular service schedule from calendar_dates.txt.
 type CalendarDate struct {
-	service_id     *Calendar
-	date           string
-	exception_type ExceptionType
+	ServiceID     *Calendar
+	Date          string
+	ExceptionType ExceptionType
 }
 
 // Shape represents a single point in a route's geographic path from shapes.txt.
-// All points sharing a shape_id together define the drawn path of a trip.
+// All points sharing a ShapeID together define the drawn path of a trip.
 type Shape struct {
-	shape_id            string
-	shape_pt_lat        float64
-	shape_pt_lon        float64
-	shape_pt_sequence   int
-	shape_dist_traveled float64
+	ShapeID           string
+	ShapePtLat        float64
+	ShapePtLon        float64
+	ShapePtSequence   int
+	ShapeDistTraveled float64
 }
 
 // ExactTimes indicates whether a frequency-based trip follows an exact schedule.
@@ -218,11 +218,11 @@ const (
 
 // Frequency represents a headway-based trip interval from frequencies.txt.
 type Frequency struct {
-	trip_id      *Trip
-	start_time   string
-	end_time     string
-	headway_secs int
-	exact_times  ExactTimes
+	TripID      *Trip
+	StartTime   string
+	EndTime     string
+	HeadwaySecs int
+	ExactTimes  ExactTimes
 }
 
 // TransferType specifies the type of connection between two stops or routes.
@@ -237,14 +237,14 @@ const (
 
 // Transfer represents a connection rule between two stops or routes from transfers.txt.
 type Transfer struct {
-	from_stop_id      *Stop
-	to_stop_id        *Stop
-	from_route_id     *Route
-	to_route_id       *Route
-	from_trip_id      *Trip
-	to_trip_id        *Trip
-	transfer_type     TransferType
-	min_transfer_time int
+	FromStopID      *Stop
+	ToStopID        *Stop
+	FromRouteID     *Route
+	ToRouteID       *Route
+	FromTripID      *Trip
+	ToTripID        *Trip
+	TransferType    TransferType
+	MinTransferTime int
 }
 
 // PaymentMethod indicates when a fare must be paid.
@@ -266,35 +266,35 @@ const (
 
 // FareAttribute represents a fare class from fare_attributes.txt.
 type FareAttribute struct {
-	fare_id           string
-	price             float64
-	currency_type     string
-	payment_method    PaymentMethod
-	transfers         FareTransfers
-	agency_id         *Agency
-	transfer_duration int
+	FareID           string
+	Price            float64
+	CurrencyType     string
+	PaymentMethod    PaymentMethod
+	Transfers        FareTransfers
+	AgencyID         *Agency
+	TransferDuration int
 }
 
 // FareRule represents a rule for applying a fare to an itinerary from fare_rules.txt.
 type FareRule struct {
-	fare_id        *FareAttribute
-	route_id       *Route
-	origin_id      string
-	destination_id string
-	contains_id    string
+	FareID        *FareAttribute
+	RouteID       *Route
+	OriginID      string
+	DestinationID string
+	ContainsID    string
 }
 
 // FeedInfo contains metadata about the GTFS feed from feed_info.txt.
 type FeedInfo struct {
-	feed_publisher_name string
-	feed_publisher_url  string
-	feed_lang           string
-	default_lang        string
-	feed_start_date     string
-	feed_end_date       string
-	feed_version        string
-	feed_contact_email  string
-	feed_contact_url    string
+	FeedPublisherName string
+	FeedPublisherURL  string
+	FeedLang          string
+	DefaultLang       string
+	FeedStartDate     string
+	FeedEndDate       string
+	FeedVersion       string
+	FeedContactEmail  string
+	FeedContactURL    string
 }
 
 // PathwayMode describes the type of pathway connecting two locations within a station.
@@ -312,51 +312,51 @@ const (
 
 // Pathway represents a connection between two locations within a station from pathways.txt.
 type Pathway struct {
-	pathway_id             string
-	from_stop_id           *Stop
-	to_stop_id             *Stop
-	pathway_mode           PathwayMode
-	is_bidirectional       int
-	length                 float64
-	traversal_time         int
-	stair_count            int
-	max_slope              float64
-	min_width              float64
-	signposted_as          string
-	reversed_signposted_as string
+	PathwayID              string
+	FromStopID             *Stop
+	ToStopID               *Stop
+	PathwayMode            PathwayMode
+	IsBidirectional        int
+	Length                 float64
+	TraversalTime          int
+	StairCount             int
+	MaxSlope               float64
+	MinWidth               float64
+	SignpostedAs           string
+	ReversedSignpostedAs   string
 }
 
 // Level represents a floor level within a station from levels.txt.
 type Level struct {
-	level_id    string
-	level_index float64
-	level_name  string
+	LevelID    string
+	LevelIndex float64
+	LevelName  string
 }
 
 // Attribution represents an organisation's role in producing a GTFS dataset from attributions.txt.
 type Attribution struct {
-	attribution_id    string
-	agency_id         *Agency
-	route_id          *Route
-	trip_id           *Trip
-	organization_name string
-	is_producer       int
-	is_operator       int
-	is_authority      int
-	attribution_url   string
-	attribution_email string
-	attribution_phone string
+	AttributionID    string
+	AgencyID         *Agency
+	RouteID          *Route
+	TripID           *Trip
+	OrganizationName string
+	IsProducer       int
+	IsOperator       int
+	IsAuthority      int
+	AttributionURL   string
+	AttributionEmail string
+	AttributionPhone string
 }
 
 // Translation represents a translated value for a field in the feed from translations.txt.
 type Translation struct {
-	table_name    string
-	field_name    string
-	language      string
-	translation   string
-	record_id     string
-	record_sub_id string
-	field_value   string
+	TableName    string
+	FieldName    string
+	Language     string
+	Translation  string
+	RecordID     string
+	RecordSubID  string
+	FieldValue   string
 }
 
 // GTFS holds all parsed data from a GTFS feed zip file.

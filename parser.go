@@ -89,20 +89,20 @@ func (gtfs *GTFS) ParseAgency() error {
 		}
 
 		agency := Agency{
-			agency_id:       getCol(row, col, "agency_id"),
-			agency_name:     getCol(row, col, "agency_name"),
-			agency_url:      getCol(row, col, "agency_url"),
-			agency_timezone: getCol(row, col, "agency_timezone"),
-			agency_lang:     getCol(row, col, "agency_lang"),
-			agency_phone:    getCol(row, col, "agency_phone"),
-			agency_fare_url: getCol(row, col, "agency_fare_url"),
-			agency_email:    getCol(row, col, "agency_email"),
+			AgencyID:       getCol(row, col, "agency_id"),
+			AgencyName:     getCol(row, col, "agency_name"),
+			AgencyURL:      getCol(row, col, "agency_url"),
+			AgencyTimezone: getCol(row, col, "agency_timezone"),
+			AgencyLang:     getCol(row, col, "agency_lang"),
+			AgencyPhone:    getCol(row, col, "agency_phone"),
+			AgencyFareURL:  getCol(row, col, "agency_fare_url"),
+			AgencyEmail:    getCol(row, col, "agency_email"),
 		}
 
-		if seen[agency.agency_id] {
-			duplicates = append(duplicates, agency.agency_id)
+		if seen[agency.AgencyID] {
+			duplicates = append(duplicates, agency.AgencyID)
 		} else {
-			seen[agency.agency_id] = true
+			seen[agency.AgencyID] = true
 		}
 
 		agencies = append(agencies, agency)
@@ -168,32 +168,32 @@ func (gtfs *GTFS) ParseRoute() error {
 		var agencyPtr *Agency
 		agencyIDStr := getCol(row, col, "agency_id")
 		for i := range gtfs.AgencyData {
-			if gtfs.AgencyData[i].agency_id == agencyIDStr {
+			if gtfs.AgencyData[i].AgencyID == agencyIDStr {
 				agencyPtr = &gtfs.AgencyData[i]
 				break
 			}
 		}
 
 		route := Route{
-			route_id:            getCol(row, col, "route_id"),
-			agency_id:           agencyPtr,
-			route_short_name:    getCol(row, col, "route_short_name"),
-			route_long_name:     getCol(row, col, "route_long_name"),
-			route_desc:          getCol(row, col, "route_desc"),
-			route_type:          RouteType(routeType),
-			route_url:           getCol(row, col, "route_url"),
-			route_color:         getCol(row, col, "route_color"),
-			route_text_color:    getCol(row, col, "route_text_color"),
-			route_sort_order:    sortOrder,
-			continuous_pickup:   PickupDropOffType(contPickup),
-			continuous_drop_off: PickupDropOffType(contDropOff),
-			network_id:          getCol(row, col, "network_id"),
+			RouteID:           getCol(row, col, "route_id"),
+			AgencyID:          agencyPtr,
+			RouteShortName:    getCol(row, col, "route_short_name"),
+			RouteLongName:     getCol(row, col, "route_long_name"),
+			RouteDesc:         getCol(row, col, "route_desc"),
+			RouteType:         RouteType(routeType),
+			RouteURL:          getCol(row, col, "route_url"),
+			RouteColor:        getCol(row, col, "route_color"),
+			RouteTextColor:    getCol(row, col, "route_text_color"),
+			RouteSortOrder:    sortOrder,
+			ContinuousPickup:  PickupDropOffType(contPickup),
+			ContinuousDropOff: PickupDropOffType(contDropOff),
+			NetworkID:         getCol(row, col, "network_id"),
 		}
 
-		if seen[route.route_id] {
-			duplicates = append(duplicates, route.route_id)
+		if seen[route.RouteID] {
+			duplicates = append(duplicates, route.RouteID)
 		} else {
-			seen[route.route_id] = true
+			seen[route.RouteID] = true
 		}
 
 		routes = append(routes, route)
@@ -208,7 +208,7 @@ func (gtfs *GTFS) ParseRoute() error {
 }
 
 // ParseStop reads stops.txt from the feed zip and populates StopData.
-// parent_station and level_id foreign keys are resolved in a second pass after
+// ParentStation and LevelID foreign keys are resolved in a second pass after
 // all stops are loaded into memory.
 // Returns an error if the file is absent or contains duplicate stop_id values.
 func (gtfs *GTFS) ParseStop() error {
@@ -235,8 +235,8 @@ func (gtfs *GTFS) ParseStop() error {
 	var rawStops []stopRaw
 	seen := make(map[string]int)
 	type duplicate struct {
-		stop_id string
-		line    int
+		stopID string
+		line   int
 	}
 	var duplicates []duplicate
 	lineNum := 1
@@ -270,26 +270,26 @@ func (gtfs *GTFS) ParseStop() error {
 		}
 
 		stop := Stop{
-			stop_id:             getCol(row, col, "stop_id"),
-			stop_code:           getCol(row, col, "stop_code"),
-			stop_name:           getCol(row, col, "stop_name"),
-			stop_desc:           getCol(row, col, "stop_desc"),
-			stop_lat:            lat,
-			stop_lon:            lon,
-			zone_id:             getCol(row, col, "zone_id"),
-			stop_url:            getCol(row, col, "stop_url"),
-			location_type:       LocationType(locType),
-			parent_station:      nil,
-			stop_timezone:       getCol(row, col, "stop_timezone"),
-			wheelchair_boarding: WheelchairBoarding(wheelchair),
-			level_id:            nil,
-			platform_code:       getCol(row, col, "platform_code"),
+			StopID:             getCol(row, col, "stop_id"),
+			StopCode:           getCol(row, col, "stop_code"),
+			StopName:           getCol(row, col, "stop_name"),
+			StopDesc:           getCol(row, col, "stop_desc"),
+			StopLat:            lat,
+			StopLon:            lon,
+			ZoneID:             getCol(row, col, "zone_id"),
+			StopURL:            getCol(row, col, "stop_url"),
+			LocationType:       LocationType(locType),
+			ParentStation:      nil,
+			StopTimezone:       getCol(row, col, "stop_timezone"),
+			WheelchairBoarding: WheelchairBoarding(wheelchair),
+			LevelID:            nil,
+			PlatformCode:       getCol(row, col, "platform_code"),
 		}
 
-		if _, exists := seen[stop.stop_id]; exists {
-			duplicates = append(duplicates, duplicate{stop_id: stop.stop_id, line: lineNum})
+		if _, exists := seen[stop.StopID]; exists {
+			duplicates = append(duplicates, duplicate{stopID: stop.StopID, line: lineNum})
 		} else {
-			seen[stop.stop_id] = lineNum
+			seen[stop.StopID] = lineNum
 		}
 
 		rawStops = append(rawStops, stopRaw{
@@ -302,7 +302,7 @@ func (gtfs *GTFS) ParseStop() error {
 	if len(duplicates) > 0 {
 		msg := "duplicate stop_id(s) found:"
 		for _, d := range duplicates {
-			msg += fmt.Sprintf("\n  stop_id %q at line %d (first seen at line %d)", d.stop_id, d.line, seen[d.stop_id])
+			msg += fmt.Sprintf("\n  stop_id %q at line %d (first seen at line %d)", d.stopID, d.line, seen[d.stopID])
 		}
 		return fmt.Errorf("%s", msg)
 	}
@@ -314,18 +314,18 @@ func (gtfs *GTFS) ParseStop() error {
 
 	stopIndex := make(map[string]*Stop)
 	for i := range stops {
-		stopIndex[stops[i].stop_id] = &stops[i]
+		stopIndex[stops[i].StopID] = &stops[i]
 	}
 	levelIndex := make(map[string]*Level)
 	for i := range gtfs.LevelData {
-		levelIndex[gtfs.LevelData[i].level_id] = &gtfs.LevelData[i]
+		levelIndex[gtfs.LevelData[i].LevelID] = &gtfs.LevelData[i]
 	}
 	for i, rs := range rawStops {
 		if rs.parentStationID != "" {
-			stops[i].parent_station = stopIndex[rs.parentStationID]
+			stops[i].ParentStation = stopIndex[rs.parentStationID]
 		}
 		if rs.levelID != "" {
-			stops[i].level_id = levelIndex[rs.levelID]
+			stops[i].LevelID = levelIndex[rs.levelID]
 		}
 	}
 
@@ -355,15 +355,15 @@ func (gtfs *GTFS) ParseTrip() error {
 
 	routeIndex := make(map[string]*Route)
 	for i := range gtfs.RouteData {
-		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
+		routeIndex[gtfs.RouteData[i].RouteID] = &gtfs.RouteData[i]
 	}
 	calendarIndex := make(map[string]*Calendar)
 	for i := range gtfs.CalendarData {
-		calendarIndex[gtfs.CalendarData[i].service_id] = &gtfs.CalendarData[i]
+		calendarIndex[gtfs.CalendarData[i].ServiceID] = &gtfs.CalendarData[i]
 	}
 	shapeIndex := make(map[string]*Shape)
 	for i := range gtfs.ShapeData {
-		shapeIndex[gtfs.ShapeData[i].shape_id] = &gtfs.ShapeData[i]
+		shapeIndex[gtfs.ShapeData[i].ShapeID] = &gtfs.ShapeData[i]
 	}
 
 	var trips []Trip
@@ -393,22 +393,22 @@ func (gtfs *GTFS) ParseTrip() error {
 		}
 
 		trip := Trip{
-			route_id:              routeIndex[getCol(row, col, "route_id")],
-			service_id:            calendarIndex[getCol(row, col, "service_id")],
-			trip_id:               getCol(row, col, "trip_id"),
-			trip_headsign:         getCol(row, col, "trip_headsign"),
-			trip_short_name:       getCol(row, col, "trip_short_name"),
-			direction_id:          DirectionId(directionId),
-			block_id:              getCol(row, col, "block_id"),
-			shape_id:              shapeIndex[getCol(row, col, "shape_id")],
-			wheelchair_accessible: WheelchairAccessibleEnum(wheelchairAccessible),
-			bikes_allowed:         BikesAllowed(bikesAllowed),
+			RouteID:              routeIndex[getCol(row, col, "route_id")],
+			ServiceID:            calendarIndex[getCol(row, col, "service_id")],
+			TripID:               getCol(row, col, "trip_id"),
+			TripHeadsign:         getCol(row, col, "trip_headsign"),
+			TripShortName:        getCol(row, col, "trip_short_name"),
+			DirectionID:          DirectionId(directionId),
+			BlockID:              getCol(row, col, "block_id"),
+			ShapeID:              shapeIndex[getCol(row, col, "shape_id")],
+			WheelchairAccessible: WheelchairAccessibleEnum(wheelchairAccessible),
+			BikesAllowed:         BikesAllowed(bikesAllowed),
 		}
 
-		if seen[trip.trip_id] {
-			duplicates = append(duplicates, trip.trip_id)
+		if seen[trip.TripID] {
+			duplicates = append(duplicates, trip.TripID)
 		} else {
-			seen[trip.trip_id] = true
+			seen[trip.TripID] = true
 		}
 
 		trips = append(trips, trip)
@@ -462,22 +462,22 @@ func (gtfs *GTFS) ParseCalendar() error {
 		sunday, _ := strconv.Atoi(getCol(row, col, "sunday"))
 
 		calendar := Calendar{
-			service_id: getCol(row, col, "service_id"),
-			monday:     monday,
-			tuesday:    tuesday,
-			wednesday:  wednesday,
-			thursday:   thursday,
-			friday:     friday,
-			saturday:   saturday,
-			sunday:     sunday,
-			start_date: getCol(row, col, "start_date"),
-			end_date:   getCol(row, col, "end_date"),
+			ServiceID: getCol(row, col, "service_id"),
+			Monday:    monday,
+			Tuesday:   tuesday,
+			Wednesday: wednesday,
+			Thursday:  thursday,
+			Friday:    friday,
+			Saturday:  saturday,
+			Sunday:    sunday,
+			StartDate: getCol(row, col, "start_date"),
+			EndDate:   getCol(row, col, "end_date"),
 		}
 
-		if seen[calendar.service_id] {
-			duplicates = append(duplicates, calendar.service_id)
+		if seen[calendar.ServiceID] {
+			duplicates = append(duplicates, calendar.ServiceID)
 		} else {
-			seen[calendar.service_id] = true
+			seen[calendar.ServiceID] = true
 		}
 
 		calendars = append(calendars, calendar)
@@ -547,11 +547,11 @@ func (gtfs *GTFS) ParseShape() error {
 		}
 
 		shapes = append(shapes, Shape{
-			shape_id:            shapeID,
-			shape_pt_lat:        lat,
-			shape_pt_lon:        lon,
-			shape_pt_sequence:   seq,
-			shape_dist_traveled: distTraveled,
+			ShapeID:           shapeID,
+			ShapePtLat:        lat,
+			ShapePtLon:        lon,
+			ShapePtSequence:   seq,
+			ShapeDistTraveled: distTraveled,
 		})
 	}
 
@@ -584,11 +584,11 @@ func (gtfs *GTFS) ParseStopTime() error {
 
 	tripIndex := make(map[string]*Trip)
 	for i := range gtfs.TripData {
-		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
+		tripIndex[gtfs.TripData[i].TripID] = &gtfs.TripData[i]
 	}
 	stopIndex := make(map[string]*Stop)
 	for i := range gtfs.StopData {
-		stopIndex[gtfs.StopData[i].stop_id] = &gtfs.StopData[i]
+		stopIndex[gtfs.StopData[i].StopID] = &gtfs.StopData[i]
 	}
 
 	var stopTimes []StopTime
@@ -620,18 +620,18 @@ func (gtfs *GTFS) ParseStopTime() error {
 		timepoint, _ := strconv.Atoi(getCol(row, col, "timepoint"))
 
 		stopTime := StopTime{
-			trip_id:             tripIndex[tripIDStr],
-			arrival_time:        getCol(row, col, "arrival_time"),
-			departure_time:      getCol(row, col, "departure_time"),
-			stop_id:             stopIndex[getCol(row, col, "stop_id")],
-			stop_sequence:       seq,
-			stop_headsign:       getCol(row, col, "stop_headsign"),
-			pickup_type:         PickupDropOffType(pickupType),
-			drop_off_type:       PickupDropOffType(dropOffType),
-			continuous_pickup:   PickupDropOffType(contPickup),
-			continuous_drop_off: PickupDropOffType(contDropOff),
-			shape_dist_traveled: distTraveled,
-			timepoint:           Timepoint(timepoint),
+			TripID:            tripIndex[tripIDStr],
+			ArrivalTime:       getCol(row, col, "arrival_time"),
+			DepartureTime:     getCol(row, col, "departure_time"),
+			StopID:            stopIndex[getCol(row, col, "stop_id")],
+			StopSequence:      seq,
+			StopHeadsign:      getCol(row, col, "stop_headsign"),
+			PickupType:        PickupDropOffType(pickupType),
+			DropOffType:       PickupDropOffType(dropOffType),
+			ContinuousPickup:  PickupDropOffType(contPickup),
+			ContinuousDropOff: PickupDropOffType(contDropOff),
+			ShapeDistTraveled: distTraveled,
+			Timepoint:         Timepoint(timepoint),
 		}
 
 		key := tripIDStr + "|" + seqStr
@@ -673,7 +673,7 @@ func (gtfs *GTFS) ParseFrequency() error {
 
 	tripIndex := make(map[string]*Trip)
 	for i := range gtfs.TripData {
-		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
+		tripIndex[gtfs.TripData[i].TripID] = &gtfs.TripData[i]
 	}
 
 	var frequencies []Frequency
@@ -694,11 +694,11 @@ func (gtfs *GTFS) ParseFrequency() error {
 		exactTimes, _ := strconv.Atoi(getCol(row, col, "exact_times"))
 
 		frequencies = append(frequencies, Frequency{
-			trip_id:      tripIndex[getCol(row, col, "trip_id")],
-			start_time:   getCol(row, col, "start_time"),
-			end_time:     getCol(row, col, "end_time"),
-			headway_secs: headwaySecs,
-			exact_times:  ExactTimes(exactTimes),
+			TripID:      tripIndex[getCol(row, col, "trip_id")],
+			StartTime:   getCol(row, col, "start_time"),
+			EndTime:     getCol(row, col, "end_time"),
+			HeadwaySecs: headwaySecs,
+			ExactTimes:  ExactTimes(exactTimes),
 		})
 	}
 
@@ -727,15 +727,15 @@ func (gtfs *GTFS) ParseTransfer() error {
 
 	stopIndex := make(map[string]*Stop)
 	for i := range gtfs.StopData {
-		stopIndex[gtfs.StopData[i].stop_id] = &gtfs.StopData[i]
+		stopIndex[gtfs.StopData[i].StopID] = &gtfs.StopData[i]
 	}
 	routeIndex := make(map[string]*Route)
 	for i := range gtfs.RouteData {
-		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
+		routeIndex[gtfs.RouteData[i].RouteID] = &gtfs.RouteData[i]
 	}
 	tripIndex := make(map[string]*Trip)
 	for i := range gtfs.TripData {
-		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
+		tripIndex[gtfs.TripData[i].TripID] = &gtfs.TripData[i]
 	}
 
 	var transfers []Transfer
@@ -753,14 +753,14 @@ func (gtfs *GTFS) ParseTransfer() error {
 		minTransferTime, _ := strconv.Atoi(getCol(row, col, "min_transfer_time"))
 
 		transfers = append(transfers, Transfer{
-			from_stop_id:      stopIndex[getCol(row, col, "from_stop_id")],
-			to_stop_id:        stopIndex[getCol(row, col, "to_stop_id")],
-			from_route_id:     routeIndex[getCol(row, col, "from_route_id")],
-			to_route_id:       routeIndex[getCol(row, col, "to_route_id")],
-			from_trip_id:      tripIndex[getCol(row, col, "from_trip_id")],
-			to_trip_id:        tripIndex[getCol(row, col, "to_trip_id")],
-			transfer_type:     TransferType(transferType),
-			min_transfer_time: minTransferTime,
+			FromStopID:      stopIndex[getCol(row, col, "from_stop_id")],
+			ToStopID:        stopIndex[getCol(row, col, "to_stop_id")],
+			FromRouteID:     routeIndex[getCol(row, col, "from_route_id")],
+			ToRouteID:       routeIndex[getCol(row, col, "to_route_id")],
+			FromTripID:      tripIndex[getCol(row, col, "from_trip_id")],
+			ToTripID:        tripIndex[getCol(row, col, "to_trip_id")],
+			TransferType:    TransferType(transferType),
+			MinTransferTime: minTransferTime,
 		})
 	}
 
@@ -789,7 +789,7 @@ func (gtfs *GTFS) ParseCalendarDate() error {
 
 	calendarIndex := make(map[string]*Calendar)
 	for i := range gtfs.CalendarData {
-		calendarIndex[gtfs.CalendarData[i].service_id] = &gtfs.CalendarData[i]
+		calendarIndex[gtfs.CalendarData[i].ServiceID] = &gtfs.CalendarData[i]
 	}
 
 	var calendarDates []CalendarDate
@@ -805,9 +805,9 @@ func (gtfs *GTFS) ParseCalendarDate() error {
 		exceptionType, _ := strconv.Atoi(getCol(row, col, "exception_type"))
 
 		calendarDates = append(calendarDates, CalendarDate{
-			service_id:     calendarIndex[getCol(row, col, "service_id")],
-			date:           getCol(row, col, "date"),
-			exception_type: ExceptionType(exceptionType),
+			ServiceID:     calendarIndex[getCol(row, col, "service_id")],
+			Date:          getCol(row, col, "date"),
+			ExceptionType: ExceptionType(exceptionType),
 		})
 	}
 
@@ -846,21 +846,21 @@ func (gtfs *GTFS) ParseLevel() error {
 			return err
 		}
 
-		levelIndex, err := strconv.ParseFloat(getCol(row, col, "level_index"), 64)
+		levelIdx, err := strconv.ParseFloat(getCol(row, col, "level_index"), 64)
 		if err != nil {
 			return fmt.Errorf("invalid level_index for level_id %s: %w", getCol(row, col, "level_id"), err)
 		}
 
 		level := Level{
-			level_id:    getCol(row, col, "level_id"),
-			level_index: levelIndex,
-			level_name:  getCol(row, col, "level_name"),
+			LevelID:    getCol(row, col, "level_id"),
+			LevelIndex: levelIdx,
+			LevelName:  getCol(row, col, "level_name"),
 		}
 
-		if seen[level.level_id] {
-			duplicates = append(duplicates, level.level_id)
+		if seen[level.LevelID] {
+			duplicates = append(duplicates, level.LevelID)
 		} else {
-			seen[level.level_id] = true
+			seen[level.LevelID] = true
 		}
 
 		levels = append(levels, level)
@@ -895,7 +895,7 @@ func (gtfs *GTFS) ParsePathway() error {
 
 	stopIndex := make(map[string]*Stop)
 	for i := range gtfs.StopData {
-		stopIndex[gtfs.StopData[i].stop_id] = &gtfs.StopData[i]
+		stopIndex[gtfs.StopData[i].StopID] = &gtfs.StopData[i]
 	}
 
 	var pathways []Pathway
@@ -920,24 +920,24 @@ func (gtfs *GTFS) ParsePathway() error {
 		minWidth, _ := strconv.ParseFloat(getCol(row, col, "min_width"), 64)
 
 		pathway := Pathway{
-			pathway_id:             getCol(row, col, "pathway_id"),
-			from_stop_id:           stopIndex[getCol(row, col, "from_stop_id")],
-			to_stop_id:             stopIndex[getCol(row, col, "to_stop_id")],
-			pathway_mode:           PathwayMode(pathwayMode),
-			is_bidirectional:       isBidirectional,
-			length:                 length,
-			traversal_time:         traversalTime,
-			stair_count:            stairCount,
-			max_slope:              maxSlope,
-			min_width:              minWidth,
-			signposted_as:          getCol(row, col, "signposted_as"),
-			reversed_signposted_as: getCol(row, col, "reversed_signposted_as"),
+			PathwayID:            getCol(row, col, "pathway_id"),
+			FromStopID:           stopIndex[getCol(row, col, "from_stop_id")],
+			ToStopID:             stopIndex[getCol(row, col, "to_stop_id")],
+			PathwayMode:          PathwayMode(pathwayMode),
+			IsBidirectional:      isBidirectional,
+			Length:               length,
+			TraversalTime:        traversalTime,
+			StairCount:           stairCount,
+			MaxSlope:             maxSlope,
+			MinWidth:             minWidth,
+			SignpostedAs:         getCol(row, col, "signposted_as"),
+			ReversedSignpostedAs: getCol(row, col, "reversed_signposted_as"),
 		}
 
-		if seen[pathway.pathway_id] {
-			duplicates = append(duplicates, pathway.pathway_id)
+		if seen[pathway.PathwayID] {
+			duplicates = append(duplicates, pathway.PathwayID)
 		} else {
-			seen[pathway.pathway_id] = true
+			seen[pathway.PathwayID] = true
 		}
 
 		pathways = append(pathways, pathway)
@@ -972,7 +972,7 @@ func (gtfs *GTFS) ParseFareAttribute() error {
 
 	agencyIndex := make(map[string]*Agency)
 	for i := range gtfs.AgencyData {
-		agencyIndex[gtfs.AgencyData[i].agency_id] = &gtfs.AgencyData[i]
+		agencyIndex[gtfs.AgencyData[i].AgencyID] = &gtfs.AgencyData[i]
 	}
 
 	var fareAttributes []FareAttribute
@@ -997,19 +997,19 @@ func (gtfs *GTFS) ParseFareAttribute() error {
 		transferDuration, _ := strconv.Atoi(getCol(row, col, "transfer_duration"))
 
 		fa := FareAttribute{
-			fare_id:           getCol(row, col, "fare_id"),
-			price:             price,
-			currency_type:     getCol(row, col, "currency_type"),
-			payment_method:    PaymentMethod(paymentMethod),
-			transfers:         FareTransfers(transfers),
-			agency_id:         agencyIndex[getCol(row, col, "agency_id")],
-			transfer_duration: transferDuration,
+			FareID:           getCol(row, col, "fare_id"),
+			Price:            price,
+			CurrencyType:     getCol(row, col, "currency_type"),
+			PaymentMethod:    PaymentMethod(paymentMethod),
+			Transfers:        FareTransfers(transfers),
+			AgencyID:         agencyIndex[getCol(row, col, "agency_id")],
+			TransferDuration: transferDuration,
 		}
 
-		if seen[fa.fare_id] {
-			duplicates = append(duplicates, fa.fare_id)
+		if seen[fa.FareID] {
+			duplicates = append(duplicates, fa.FareID)
 		} else {
-			seen[fa.fare_id] = true
+			seen[fa.FareID] = true
 		}
 
 		fareAttributes = append(fareAttributes, fa)
@@ -1044,11 +1044,11 @@ func (gtfs *GTFS) ParseFareRule() error {
 
 	fareIndex := make(map[string]*FareAttribute)
 	for i := range gtfs.FareAttributes {
-		fareIndex[gtfs.FareAttributes[i].fare_id] = &gtfs.FareAttributes[i]
+		fareIndex[gtfs.FareAttributes[i].FareID] = &gtfs.FareAttributes[i]
 	}
 	routeIndex := make(map[string]*Route)
 	for i := range gtfs.RouteData {
-		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
+		routeIndex[gtfs.RouteData[i].RouteID] = &gtfs.RouteData[i]
 	}
 
 	var fareRules []FareRule
@@ -1062,11 +1062,11 @@ func (gtfs *GTFS) ParseFareRule() error {
 		}
 
 		fareRules = append(fareRules, FareRule{
-			fare_id:        fareIndex[getCol(row, col, "fare_id")],
-			route_id:       routeIndex[getCol(row, col, "route_id")],
-			origin_id:      getCol(row, col, "origin_id"),
-			destination_id: getCol(row, col, "destination_id"),
-			contains_id:    getCol(row, col, "contains_id"),
+			FareID:        fareIndex[getCol(row, col, "fare_id")],
+			RouteID:       routeIndex[getCol(row, col, "route_id")],
+			OriginID:      getCol(row, col, "origin_id"),
+			DestinationID: getCol(row, col, "destination_id"),
+			ContainsID:    getCol(row, col, "contains_id"),
 		})
 	}
 
@@ -1103,15 +1103,15 @@ func (gtfs *GTFS) ParseFeedInfo() error {
 		}
 
 		feedInfos = append(feedInfos, FeedInfo{
-			feed_publisher_name: getCol(row, col, "feed_publisher_name"),
-			feed_publisher_url:  getCol(row, col, "feed_publisher_url"),
-			feed_lang:           getCol(row, col, "feed_lang"),
-			default_lang:        getCol(row, col, "default_lang"),
-			feed_start_date:     getCol(row, col, "feed_start_date"),
-			feed_end_date:       getCol(row, col, "feed_end_date"),
-			feed_version:        getCol(row, col, "feed_version"),
-			feed_contact_email:  getCol(row, col, "feed_contact_email"),
-			feed_contact_url:    getCol(row, col, "feed_contact_url"),
+			FeedPublisherName: getCol(row, col, "feed_publisher_name"),
+			FeedPublisherURL:  getCol(row, col, "feed_publisher_url"),
+			FeedLang:          getCol(row, col, "feed_lang"),
+			DefaultLang:       getCol(row, col, "default_lang"),
+			FeedStartDate:     getCol(row, col, "feed_start_date"),
+			FeedEndDate:       getCol(row, col, "feed_end_date"),
+			FeedVersion:       getCol(row, col, "feed_version"),
+			FeedContactEmail:  getCol(row, col, "feed_contact_email"),
+			FeedContactURL:    getCol(row, col, "feed_contact_url"),
 		})
 	}
 
@@ -1140,15 +1140,15 @@ func (gtfs *GTFS) ParseAttribution() error {
 
 	agencyIndex := make(map[string]*Agency)
 	for i := range gtfs.AgencyData {
-		agencyIndex[gtfs.AgencyData[i].agency_id] = &gtfs.AgencyData[i]
+		agencyIndex[gtfs.AgencyData[i].AgencyID] = &gtfs.AgencyData[i]
 	}
 	routeIndex := make(map[string]*Route)
 	for i := range gtfs.RouteData {
-		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
+		routeIndex[gtfs.RouteData[i].RouteID] = &gtfs.RouteData[i]
 	}
 	tripIndex := make(map[string]*Trip)
 	for i := range gtfs.TripData {
-		tripIndex[gtfs.TripData[i].trip_id] = &gtfs.TripData[i]
+		tripIndex[gtfs.TripData[i].TripID] = &gtfs.TripData[i]
 	}
 
 	var attributions []Attribution
@@ -1166,17 +1166,17 @@ func (gtfs *GTFS) ParseAttribution() error {
 		isAuthority, _ := strconv.Atoi(getCol(row, col, "is_authority"))
 
 		attributions = append(attributions, Attribution{
-			attribution_id:    getCol(row, col, "attribution_id"),
-			agency_id:         agencyIndex[getCol(row, col, "agency_id")],
-			route_id:          routeIndex[getCol(row, col, "route_id")],
-			trip_id:           tripIndex[getCol(row, col, "trip_id")],
-			organization_name: getCol(row, col, "organization_name"),
-			is_producer:       isProducer,
-			is_operator:       isOperator,
-			is_authority:      isAuthority,
-			attribution_url:   getCol(row, col, "attribution_url"),
-			attribution_email: getCol(row, col, "attribution_email"),
-			attribution_phone: getCol(row, col, "attribution_phone"),
+			AttributionID:    getCol(row, col, "attribution_id"),
+			AgencyID:         agencyIndex[getCol(row, col, "agency_id")],
+			RouteID:          routeIndex[getCol(row, col, "route_id")],
+			TripID:           tripIndex[getCol(row, col, "trip_id")],
+			OrganizationName: getCol(row, col, "organization_name"),
+			IsProducer:       isProducer,
+			IsOperator:       isOperator,
+			IsAuthority:      isAuthority,
+			AttributionURL:   getCol(row, col, "attribution_url"),
+			AttributionEmail: getCol(row, col, "attribution_email"),
+			AttributionPhone: getCol(row, col, "attribution_phone"),
 		})
 	}
 
@@ -1213,13 +1213,13 @@ func (gtfs *GTFS) ParseTranslation() error {
 		}
 
 		translations = append(translations, Translation{
-			table_name:    getCol(row, col, "table_name"),
-			field_name:    getCol(row, col, "field_name"),
-			language:      getCol(row, col, "language"),
-			translation:   getCol(row, col, "translation"),
-			record_id:     getCol(row, col, "record_id"),
-			record_sub_id: getCol(row, col, "record_sub_id"),
-			field_value:   getCol(row, col, "field_value"),
+			TableName:   getCol(row, col, "table_name"),
+			FieldName:   getCol(row, col, "field_name"),
+			Language:    getCol(row, col, "language"),
+			Translation: getCol(row, col, "translation"),
+			RecordID:    getCol(row, col, "record_id"),
+			RecordSubID: getCol(row, col, "record_sub_id"),
+			FieldValue:  getCol(row, col, "field_value"),
 		})
 	}
 
