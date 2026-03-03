@@ -69,7 +69,7 @@ Validation collects **all errors** before returning — do not fail fast. Return
 - Do not use `panic`; always return errors
 
 ## Struct Design Patterns
-- **CSV parsing**: read the header row into a `map[string]int` column index map (`col`), then access fields by `row[col["field_name"]]`. Do not use struct tags.
+- **CSV parsing**: read the header row into a `map[string]int` column index map (`col`), then access fields using the `getCol(row, col, "field_name")` helper in `parser.go`. This safely returns `""` if the column is missing. Do not use struct tags or direct `row[col["field_name"]]` access.
 - **Foreign key fields**: use a pointer to the referenced struct (e.g. `agency_id *Agency`, `route_id *Route`) to model relationships. `nil` means not provided or not yet resolved.
 - **Conditionally required numeric fields**: use a pointer (e.g. `stop_lat *float64`) so `nil` means "not provided" and is distinguishable from a real zero value. Use the `parseOptionalFloat` helper in `parser.go`.
 - **Enum fields**: define a named `int` type and `const` block with `iota` for each enum (e.g. `LocationType`, `RouteType`). Cast the parsed integer to the enum type.

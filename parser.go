@@ -61,14 +61,14 @@ func (gtfs *GTFS) ParseAgency() error {
 		}
 
 		agency := Agency{
-			agency_id:       row[col["agency_id"]],
-			agency_name:     row[col["agency_name"]],
-			agency_url:      row[col["agency_url"]],
-			agency_timezone: row[col["agency_timezone"]],
-			agency_lang:     row[col["agency_lang"]],
-			agency_phone:    row[col["agency_phone"]],
-			agency_fare_url: row[col["agency_fare_url"]],
-			agency_email:    row[col["agency_email"]],
+			agency_id:       getCol(row, col, "agency_id"),
+			agency_name:     getCol(row, col, "agency_name"),
+			agency_url:      getCol(row, col, "agency_url"),
+			agency_timezone: getCol(row, col, "agency_timezone"),
+			agency_lang:     getCol(row, col, "agency_lang"),
+			agency_phone:    getCol(row, col, "agency_phone"),
+			agency_fare_url: getCol(row, col, "agency_fare_url"),
+			agency_email:    getCol(row, col, "agency_email"),
 		}
 
 		if seen[agency.agency_id] {
@@ -86,6 +86,14 @@ func (gtfs *GTFS) ParseAgency() error {
 
 	gtfs.AgencyData = agencies
 	return nil
+}
+
+func getCol(row []string, col map[string]int, name string) string {
+	i, ok := col[name]
+	if !ok || i >= len(row) {
+		return ""
+	}
+	return row[i]
 }
 
 func parseOptionalFloat(s string) (*float64, error) {
@@ -151,39 +159,39 @@ func (gtfs *GTFS) ParseStop() error {
 			return err
 		}
 
-		lat, err := parseOptionalFloat(row[col["stop_lat"]])
+		lat, err := parseOptionalFloat(getCol(row, col, "stop_lat"))
 		if err != nil {
-			return fmt.Errorf("invalid stop_lat for stop_id %s: %w", row[col["stop_id"]], err)
+			return fmt.Errorf("invalid stop_lat for stop_id %s: %w", getCol(row, col, "stop_id"), err)
 		}
-		lon, err := parseOptionalFloat(row[col["stop_lon"]])
+		lon, err := parseOptionalFloat(getCol(row, col, "stop_lon"))
 		if err != nil {
-			return fmt.Errorf("invalid stop_lon for stop_id %s: %w", row[col["stop_id"]], err)
+			return fmt.Errorf("invalid stop_lon for stop_id %s: %w", getCol(row, col, "stop_id"), err)
 		}
 
-		locType, err := strconv.Atoi(row[col["location_type"]])
+		locType, err := strconv.Atoi(getCol(row, col, "location_type"))
 		if err != nil {
 			locType = 0 // default: stop/platform
 		}
-		wheelchair, err := strconv.Atoi(row[col["wheelchair_boarding"]])
+		wheelchair, err := strconv.Atoi(getCol(row, col, "wheelchair_boarding"))
 		if err != nil {
 			wheelchair = 0 // default: no info
 		}
 
 		stop := Stop{
-			stop_id:             row[col["stop_id"]],
-			stop_code:           row[col["stop_code"]],
-			stop_name:           row[col["stop_name"]],
-			stop_desc:           row[col["stop_desc"]],
+			stop_id:             getCol(row, col, "stop_id"),
+			stop_code:           getCol(row, col, "stop_code"),
+			stop_name:           getCol(row, col, "stop_name"),
+			stop_desc:           getCol(row, col, "stop_desc"),
 			stop_lat:            lat,
 			stop_lon:            lon,
-			zone_id:             row[col["zone_id"]],
-			stop_url:            row[col["stop_url"]],
+			zone_id:             getCol(row, col, "zone_id"),
+			stop_url:            getCol(row, col, "stop_url"),
 			location_type:       LocationType(locType),
-			parent_station:      row[col["parent_station"]],
-			stop_timezone:       row[col["stop_timezone"]],
+			parent_station:      getCol(row, col, "parent_station"),
+			stop_timezone:       getCol(row, col, "stop_timezone"),
 			wheelchair_boarding: WheelchairBoarding(wheelchair),
-			level_id:            row[col["level_id"]],
-			platform_code:       row[col["platform_code"]],
+			level_id:            getCol(row, col, "level_id"),
+			platform_code:       getCol(row, col, "platform_code"),
 		}
 
 		if seen[stop.stop_id] {
