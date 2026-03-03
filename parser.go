@@ -349,3 +349,290 @@ func (gtfs *GTFS) ParseStop() error {
 	gtfs.StopData = stops
 	return nil
 }
+
+func (gtfs *GTFS) ParseTrip() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	// Find trips.txt in the zip
+	var tripsFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "trips.txt" {
+			tripsFile = f
+			break
+		}
+	}
+	if tripsFile == nil {
+		return fmt.Errorf("trips.txt not found in %s", gtfs.FileName)
+	}
+
+	// Open and parse as CSV
+	rc, err := tripsFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+
+	// Read header row and build column index map
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	// Build indexes for FK resolution
+	routeIndex := make(map[string]*Route)
+	for i := range gtfs.RouteData {
+		routeIndex[gtfs.RouteData[i].route_id] = &gtfs.RouteData[i]
+	}
+	calendarIndex := make(map[string]*Calendar)
+	for i := range gtfs.CalendarData {
+		calendarIndex[gtfs.CalendarData[i].service_id] = &gtfs.CalendarData[i]
+	}
+	shapeIndex := make(map[string]*Shape)
+	for i := range gtfs.ShapeData {
+		shapeIndex[gtfs.ShapeData[i].shape_id] = &gtfs.ShapeData[i]
+	}
+
+	// Parse each row into a Trip
+	var trips []Trip
+	seen := make(map[string]bool)
+	var duplicates []string
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		directionId, err := strconv.Atoi(getCol(row, col, "direction_id"))
+		if err != nil {
+			directionId = 0
+		}
+		wheelchairAccessible, err := strconv.Atoi(getCol(row, col, "wheelchair_accessible"))
+		if err != nil {
+			wheelchairAccessible = 0
+		}
+		bikesAllowed, err := strconv.Atoi(getCol(row, col, "bikes_allowed"))
+		if err != nil {
+			bikesAllowed = 0
+		}
+
+		trip := Trip{
+			route_id:              routeIndex[getCol(row, col, "route_id")],
+			service_id:            calendarIndex[getCol(row, col, "service_id")],
+			trip_id:               getCol(row, col, "trip_id"),
+			trip_headsign:         getCol(row, col, "trip_headsign"),
+			trip_short_name:       getCol(row, col, "trip_short_name"),
+			direction_id:          DirectionId(directionId),
+			block_id:              getCol(row, col, "block_id"),
+			shape_id:              shapeIndex[getCol(row, col, "shape_id")],
+			wheelchair_accessible: WheelchairAccessibleEnum(wheelchairAccessible),
+			bikes_allowed:         BikesAllowed(bikesAllowed),
+		}
+
+		if seen[trip.trip_id] {
+			duplicates = append(duplicates, trip.trip_id)
+		} else {
+			seen[trip.trip_id] = true
+		}
+
+		trips = append(trips, trip)
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate trip_id(s) found: %v", duplicates)
+	}
+
+	gtfs.TripData = trips
+	return nil
+}
+
+func (gtfs *GTFS) ParseCalendar() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var calendarFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "calendar.txt" {
+			calendarFile = f
+			break
+		}
+	}
+	if calendarFile == nil {
+		return fmt.Errorf("calendar.txt not found in %s", gtfs.FileName)
+	}
+
+	rc, err := calendarFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	var calendars []Calendar
+	seen := make(map[string]bool)
+	var duplicates []string
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		monday, _ := strconv.Atoi(getCol(row, col, "monday"))
+		tuesday, _ := strconv.Atoi(getCol(row, col, "tuesday"))
+		wednesday, _ := strconv.Atoi(getCol(row, col, "wednesday"))
+		thursday, _ := strconv.Atoi(getCol(row, col, "thursday"))
+		friday, _ := strconv.Atoi(getCol(row, col, "friday"))
+		saturday, _ := strconv.Atoi(getCol(row, col, "saturday"))
+		sunday, _ := strconv.Atoi(getCol(row, col, "sunday"))
+
+		calendar := Calendar{
+			service_id: getCol(row, col, "service_id"),
+			monday:     monday,
+			tuesday:    tuesday,
+			wednesday:  wednesday,
+			thursday:   thursday,
+			friday:     friday,
+			saturday:   saturday,
+			sunday:     sunday,
+			start_date: getCol(row, col, "start_date"),
+			end_date:   getCol(row, col, "end_date"),
+		}
+
+		if seen[calendar.service_id] {
+			duplicates = append(duplicates, calendar.service_id)
+		} else {
+			seen[calendar.service_id] = true
+		}
+
+		calendars = append(calendars, calendar)
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate service_id(s) found: %v", duplicates)
+	}
+
+	gtfs.CalendarData = calendars
+	return nil
+}
+
+func (gtfs *GTFS) ParseShape() error {
+	r, err := zip.OpenReader(gtfs.FileName)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var shapesFile *zip.File
+	for _, f := range r.File {
+		if f.Name == "shapes.txt" {
+			shapesFile = f
+			break
+		}
+	}
+	if shapesFile == nil {
+		return nil // shapes.txt is optional
+	}
+
+	rc, err := shapesFile.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	reader := csv.NewReader(rc)
+
+	headers, err := reader.Read()
+	if err != nil {
+		return err
+	}
+	headers = sanitizeHeaders(headers)
+	col := make(map[string]int)
+	for i, h := range headers {
+		col[h] = i
+	}
+
+	var shapes []Shape
+	seen := make(map[string]bool) // tracks (shape_id, shape_pt_sequence) uniqueness
+	var duplicates []string
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		shapeID := getCol(row, col, "shape_id")
+		seqStr := getCol(row, col, "shape_pt_sequence")
+
+		lat, err := strconv.ParseFloat(getCol(row, col, "shape_pt_lat"), 64)
+		if err != nil {
+			return fmt.Errorf("invalid shape_pt_lat for shape_id %s: %w", shapeID, err)
+		}
+		lon, err := strconv.ParseFloat(getCol(row, col, "shape_pt_lon"), 64)
+		if err != nil {
+			return fmt.Errorf("invalid shape_pt_lon for shape_id %s: %w", shapeID, err)
+		}
+		seq, err := strconv.Atoi(seqStr)
+		if err != nil {
+			return fmt.Errorf("invalid shape_pt_sequence for shape_id %s: %w", shapeID, err)
+		}
+		distTraveled, _ := strconv.ParseFloat(getCol(row, col, "shape_dist_traveled"), 64)
+
+		key := shapeID + "|" + seqStr
+		if seen[key] {
+			duplicates = append(duplicates, key)
+		} else {
+			seen[key] = true
+		}
+
+		shapes = append(shapes, Shape{
+			shape_id:            shapeID,
+			shape_pt_lat:        lat,
+			shape_pt_lon:        lon,
+			shape_pt_sequence:   seq,
+			shape_dist_traveled: distTraveled,
+		})
+	}
+
+	if len(duplicates) > 0 {
+		return fmt.Errorf("duplicate (shape_id, shape_pt_sequence) found: %v", duplicates)
+	}
+
+	gtfs.ShapeData = shapes
+	return nil
+}
