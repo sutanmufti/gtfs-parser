@@ -10,6 +10,9 @@ import (
 
 var timeRegex = regexp.MustCompile(`^\d+:[0-5]\d:[0-5]\d$`)
 
+// ValidateAll validates all parsed GTFS data against the GTFS Schedule specification.
+// All errors are collected and returned; validation does not stop at the first error.
+// ParseAll should be called before ValidateAll.
 func (gtfs *GTFS) ValidateAll() []ValidationError {
 	var errs []ValidationError
 

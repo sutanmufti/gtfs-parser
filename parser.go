@@ -7,6 +7,9 @@ import (
 	"strconv"
 )
 
+// ParseAll parses all GTFS files in dependency order.
+// Required files return an error if absent; optional files are silently skipped.
+// Call ValidateAll after ParseAll to check the parsed data for specification errors.
 func (gtfs *GTFS) ParseAll() error {
 	parsers := []struct {
 		name string
@@ -54,6 +57,8 @@ func readCSVHeaders(reader *csv.Reader) (map[string]int, error) {
 	return col, nil
 }
 
+// ParseAgency reads agency.txt from the feed zip and populates AgencyData.
+// Returns an error if the file is absent or contains duplicate agency_id values.
 func (gtfs *GTFS) ParseAgency() error {
 	rc, err := openFileFromZip(gtfs.FileName, "agency.txt")
 	if err != nil {
@@ -111,6 +116,9 @@ func (gtfs *GTFS) ParseAgency() error {
 	return nil
 }
 
+// ParseRoute reads routes.txt from the feed zip and populates RouteData.
+// The agency_id foreign key is resolved against AgencyData.
+// ParseAgency must be called before ParseRoute.
 func (gtfs *GTFS) ParseRoute() error {
 	rc, err := openFileFromZip(gtfs.FileName, "routes.txt")
 	if err != nil {
@@ -199,6 +207,10 @@ func (gtfs *GTFS) ParseRoute() error {
 	return nil
 }
 
+// ParseStop reads stops.txt from the feed zip and populates StopData.
+// parent_station and level_id foreign keys are resolved in a second pass after
+// all stops are loaded into memory.
+// Returns an error if the file is absent or contains duplicate stop_id values.
 func (gtfs *GTFS) ParseStop() error {
 	rc, err := openFileFromZip(gtfs.FileName, "stops.txt")
 	if err != nil {
@@ -321,6 +333,10 @@ func (gtfs *GTFS) ParseStop() error {
 	return nil
 }
 
+// ParseTrip reads trips.txt from the feed zip and populates TripData.
+// Foreign keys for route_id, service_id, and shape_id are resolved against
+// RouteData, CalendarData, and ShapeData respectively.
+// ParseRoute, ParseCalendar, and ParseShape must be called before ParseTrip.
 func (gtfs *GTFS) ParseTrip() error {
 	rc, err := openFileFromZip(gtfs.FileName, "trips.txt")
 	if err != nil {
@@ -406,6 +422,8 @@ func (gtfs *GTFS) ParseTrip() error {
 	return nil
 }
 
+// ParseCalendar reads calendar.txt from the feed zip and populates CalendarData.
+// Returns an error if the file is absent or contains duplicate service_id values.
 func (gtfs *GTFS) ParseCalendar() error {
 	rc, err := openFileFromZip(gtfs.FileName, "calendar.txt")
 	if err != nil {
@@ -473,6 +491,8 @@ func (gtfs *GTFS) ParseCalendar() error {
 	return nil
 }
 
+// ParseShape reads shapes.txt from the feed zip and populates ShapeData.
+// The file is optional; no error is returned if it is absent.
 func (gtfs *GTFS) ParseShape() error {
 	rc, err := openFileFromZip(gtfs.FileName, "shapes.txt")
 	if err != nil {
@@ -543,6 +563,9 @@ func (gtfs *GTFS) ParseShape() error {
 	return nil
 }
 
+// ParseStopTime reads stop_times.txt from the feed zip and populates StopTimeData.
+// Foreign keys for trip_id and stop_id are resolved against TripData and StopData.
+// ParseTrip and ParseStop must be called before ParseStopTime.
 func (gtfs *GTFS) ParseStopTime() error {
 	rc, err := openFileFromZip(gtfs.FileName, "stop_times.txt")
 	if err != nil {
@@ -629,6 +652,9 @@ func (gtfs *GTFS) ParseStopTime() error {
 	return nil
 }
 
+// ParseFrequency reads frequencies.txt from the feed zip and populates FrequencyData.
+// The file is optional; no error is returned if it is absent.
+// ParseTrip must be called before ParseFrequency.
 func (gtfs *GTFS) ParseFrequency() error {
 	rc, err := openFileFromZip(gtfs.FileName, "frequencies.txt")
 	if err != nil {
@@ -680,6 +706,9 @@ func (gtfs *GTFS) ParseFrequency() error {
 	return nil
 }
 
+// ParseTransfer reads transfers.txt from the feed zip and populates TransferData.
+// The file is optional; no error is returned if it is absent.
+// ParseStop, ParseRoute, and ParseTrip must be called before ParseTransfer.
 func (gtfs *GTFS) ParseTransfer() error {
 	rc, err := openFileFromZip(gtfs.FileName, "transfers.txt")
 	if err != nil {
@@ -739,6 +768,9 @@ func (gtfs *GTFS) ParseTransfer() error {
 	return nil
 }
 
+// ParseCalendarDate reads calendar_dates.txt from the feed zip and populates CalendarDates.
+// The file is optional; no error is returned if it is absent.
+// ParseCalendar must be called before ParseCalendarDate.
 func (gtfs *GTFS) ParseCalendarDate() error {
 	rc, err := openFileFromZip(gtfs.FileName, "calendar_dates.txt")
 	if err != nil {
@@ -783,6 +815,8 @@ func (gtfs *GTFS) ParseCalendarDate() error {
 	return nil
 }
 
+// ParseLevel reads levels.txt from the feed zip and populates LevelData.
+// The file is optional; no error is returned if it is absent.
 func (gtfs *GTFS) ParseLevel() error {
 	rc, err := openFileFromZip(gtfs.FileName, "levels.txt")
 	if err != nil {
@@ -840,6 +874,9 @@ func (gtfs *GTFS) ParseLevel() error {
 	return nil
 }
 
+// ParsePathway reads pathways.txt from the feed zip and populates PathwayData.
+// The file is optional; no error is returned if it is absent.
+// ParseStop must be called before ParsePathway.
 func (gtfs *GTFS) ParsePathway() error {
 	rc, err := openFileFromZip(gtfs.FileName, "pathways.txt")
 	if err != nil {
@@ -914,6 +951,9 @@ func (gtfs *GTFS) ParsePathway() error {
 	return nil
 }
 
+// ParseFareAttribute reads fare_attributes.txt from the feed zip and populates FareAttributes.
+// The file is optional; no error is returned if it is absent.
+// ParseAgency must be called before ParseFareAttribute.
 func (gtfs *GTFS) ParseFareAttribute() error {
 	rc, err := openFileFromZip(gtfs.FileName, "fare_attributes.txt")
 	if err != nil {
@@ -983,6 +1023,9 @@ func (gtfs *GTFS) ParseFareAttribute() error {
 	return nil
 }
 
+// ParseFareRule reads fare_rules.txt from the feed zip and populates FareRules.
+// The file is optional; no error is returned if it is absent.
+// ParseFareAttribute and ParseRoute must be called before ParseFareRule.
 func (gtfs *GTFS) ParseFareRule() error {
 	rc, err := openFileFromZip(gtfs.FileName, "fare_rules.txt")
 	if err != nil {
@@ -1031,6 +1074,8 @@ func (gtfs *GTFS) ParseFareRule() error {
 	return nil
 }
 
+// ParseFeedInfo reads feed_info.txt from the feed zip and populates FeedInfo.
+// The file is optional; no error is returned if it is absent.
 func (gtfs *GTFS) ParseFeedInfo() error {
 	rc, err := openFileFromZip(gtfs.FileName, "feed_info.txt")
 	if err != nil {
@@ -1074,6 +1119,9 @@ func (gtfs *GTFS) ParseFeedInfo() error {
 	return nil
 }
 
+// ParseAttribution reads attributions.txt from the feed zip and populates Attributions.
+// The file is optional; no error is returned if it is absent.
+// ParseAgency, ParseRoute, and ParseTrip must be called before ParseAttribution.
 func (gtfs *GTFS) ParseAttribution() error {
 	rc, err := openFileFromZip(gtfs.FileName, "attributions.txt")
 	if err != nil {
@@ -1136,6 +1184,8 @@ func (gtfs *GTFS) ParseAttribution() error {
 	return nil
 }
 
+// ParseTranslation reads translations.txt from the feed zip and populates Translations.
+// The file is optional; no error is returned if it is absent.
 func (gtfs *GTFS) ParseTranslation() error {
 	rc, err := openFileFromZip(gtfs.FileName, "translations.txt")
 	if err != nil {
