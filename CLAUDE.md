@@ -22,10 +22,19 @@ go test ./...
 - `structs.go` — all exported Go structs representing GTFS entities
 - `parser.go` — CSV parsing logic per GTFS file type; contains `ParseAll()` as the main entry point
 - `helpers.go` — shared helpers: `getCol`, `sanitizeHeaders`, `parseOptionalFloat`
-- `validate.go` — validation rules (required fields, enum values, referential integrity) — not yet implemented
-- `errors.go` — structured error/warning types for validation results — not yet implemented
+- `validate.go` — validation rules; `ValidateAll()` is the main entry point, returns `[]ValidationError`
+- `errors.go` — `ValidationError` struct with `File`, `Field`, `ID`, `Message` fields
 
-Validation collects **all errors** before returning — do not fail fast. Return a slice of structured errors so callers can inspect and report them.
+Validation collects **all errors** before returning — do not fail fast. `ValidateAll()` runs after `ParseAll()`.
+
+## Validation rules implemented
+- **Required files**: `agency`, `stops`, `routes`, `trips`, `stop_times`, and at least one of `calendar`/`calendar_dates`
+- **agency.txt**: `agency_name`, `agency_url`, `agency_timezone` required
+- **stops.txt**: `stop_id` required; `stop_name` required for `location_type` 0/1; if either `stop_lat` or `stop_lon` is provided the other must also be provided; coordinate range [-90,90] / [-180,180]
+- **routes.txt**: `route_id` required; at least one of `route_short_name` or `route_long_name` required; valid `route_type`; `agency_id` required when feed has multiple agencies
+- **trips.txt**: `trip_id` required; unresolved `route_id`/`service_id` FK pointers flagged; `direction_id` must be 0 or 1
+- **stop_times.txt**: unresolved `trip_id`/`stop_id` FKs flagged; time format `HH:MM:SS` (hours may exceed 23); `stop_sequence` must be sorted and increasing within each trip
+- **calendar.txt**: required fields present; day values must be 0 or 1; dates must be valid `YYYYMMDD`
 
 ## Parser execution order
 `ParseAll()` runs parsers in dependency order:
@@ -81,7 +90,7 @@ Optional files return `nil` (not an error) when absent.
 - IDs must be unique within their file (e.g. `stop_id`, `route_id`, `trip_id`)
 - Foreign keys must reference existing records (e.g. `trips.route_id` → `routes.route_id`)
 - Enum fields must be valid integers within the specified range
-- Lat/lon fields must be valid WGS84 coordinates
+- `stop_lat`/`stop_lon` are optional but if one is provided the other is required; range [-90,90] / [-180,180]
 - Time fields use `HH:MM:SS` format (hours can exceed 24 for post-midnight service)
 
 ## Go Conventions
