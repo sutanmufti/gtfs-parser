@@ -1,5 +1,7 @@
 # gtfs-parser
 
+![Test](https://github.com/sutanmufti/gtfs-parser/actions/workflows/test.yml/badge.svg)
+
 A Go library for parsing and validating [GTFS Schedule](https://gtfs.org/schedule/) zip files.
 
 ## Overview
@@ -139,7 +141,6 @@ Optional files return no error when absent.
 ## Development
 
 ```sh
-go build ./...
 go test ./...
 ```
 
