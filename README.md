@@ -36,11 +36,21 @@ if len(errs) == 0 {
     }
 }
 
+// Build lookup indexes for routing algorithms (e.g. RAPTOR)
+gtfs.Compile()
+
 // Access parsed data
 for _, agency := range gtfs.AgencyData { ... }
 for _, stop   := range gtfs.StopData   { ... }
 for _, route  := range gtfs.RouteData  { ... }
 for _, trip   := range gtfs.TripData   { ... }
+
+// Access compiled indexes
+gtfs.TripStopTimes     // map[*Trip][]StopTime   — stop times per trip, sorted by sequence
+gtfs.RouteTrips        // map[*Route][]*Trip      — trips per route
+gtfs.StopRoutes        // map[*Stop][]*Route      — routes serving each stop
+gtfs.TransfersFromStop // map[*Stop][]Transfer    — outbound transfers per stop
+gtfs.FrequenciesByTrip // map[*Trip][]Frequency   — frequencies per trip
 ```
 
 ## API
@@ -76,6 +86,7 @@ type GTFS struct {
 |---|---|
 | `ParseAll() error` | Parses all GTFS files in dependency order |
 | `ValidateAll() []ValidationError` | Validates parsed data; collects all errors |
+| `Compile()` | Builds lookup maps (`TripStopTimes`, `RouteTrips`, `StopRoutes`, `TransfersFromStop`, `FrequenciesByTrip`) for use by routing algorithms |
 
 Individual parsers (`ParseAgency`, `ParseStop`, `ParseRoute`, etc.) are also available if you need to parse files selectively. Parsers must be called in dependency order — see [Parser execution order](#parser-execution-order) below.
 
@@ -138,9 +149,39 @@ Optional files return no error when absent.
 11. `ParseFareRule` — depends on FareAttribute, Route
 12. `ParseFeedInfo`, `ParseAttribution`, `ParseTranslation`
 
+## Explorer CLI
+
+An interactive REPL for exploring a GTFS feed is included under `./cli`.
+
+**Build:**
+
+```sh
+go build -o gtfs-cli ./cli/
+```
+
+**Run:**
+
+```sh
+./gtfs-cli -f path/to/feed.zip
+```
+
+**Commands:**
+
+| Command | Description |
+|---|---|
+| `routes` | List all routes (first 20) |
+| `route <id>` | Show all trips for a route |
+| `trips` | List all trips (first 20) |
+| `trip <id>` | Show stop times for a trip |
+| `stops` | List all stops (first 20) |
+| `stop <id>` | Show routes serving a stop |
+| `help` | Print command reference |
+| `quit` / `exit` | Exit |
+
 ## Development
 
 ```sh
+go build ./...
 go test ./...
 ```
 

@@ -17,13 +17,28 @@ go build ./...
 go test ./...
 ```
 
+## Explorer CLI
+Located in `./cli/main.go` (`package main`). An interactive REPL for exploring a GTFS feed.
+
+```sh
+# Build
+go build -o gtfs-cli ./cli/
+
+# Run
+./gtfs-cli -f path/to/feed.zip
+```
+
+Commands: `routes`, `route <id>`, `trips`, `trip <id>`, `stops`, `stop <id>`, `help`, `quit`.
+
 ## Architecture
 - `filereader.go` — zip reading, file discovery
-- `structs.go` — all exported Go structs representing GTFS entities
+- `structs.go` — all exported Go structs representing GTFS entities; `GTFS` struct holds both raw slices and compiled lookup maps
 - `parser.go` — CSV parsing logic per GTFS file type; contains `ParseAll()` as the main entry point
+- `converter.go` — `Compile()` method on `GTFS`; populates `TripStopTimes`, `RouteTrips`, `StopRoutes`, `TransfersFromStop`, `FrequenciesByTrip` for use by routing algorithms
 - `helpers.go` — shared helpers: `getCol`, `sanitizeHeaders`, `parseOptionalFloat`
 - `validate.go` — validation rules; `ValidateAll()` is the main entry point, returns `[]ValidationError`
 - `errors.go` — `ValidationError` struct with `File`, `Field`, `ID`, `Message` fields
+- `cli/main.go` — interactive REPL explorer (`package main`); not part of the library API
 
 Validation collects **all errors** before returning — do not fail fast. `ValidateAll()` runs after `ParseAll()`.
 
