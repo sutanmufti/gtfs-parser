@@ -383,8 +383,8 @@ type GTFS struct {
 	Translations   []Translation
 
 	TripStopTimes     map[*Trip][]StopTime
-	TripRoutes        map[*Trip][]StopTime
-	StopRoutes        map[*Stop][]Route
+	RouteTrips        map[*Route][]*Trip
+	StopRoutes        map[*Stop][]*Route
 	TransfersFromStop map[*Stop][]Transfer
 	FrequenciesByTrip map[*Trip][]Frequency
 }
