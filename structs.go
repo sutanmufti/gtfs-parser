@@ -50,10 +50,10 @@ type Stop struct {
 	zone_id             string
 	stop_url            string
 	location_type       LocationType
-	parent_station      string
+	parent_station      *Stop
 	stop_timezone       string
 	wheelchair_boarding WheelchairBoarding
-	level_id            string
+	level_id            *Level
 	platform_code       string
 }
 
@@ -122,7 +122,7 @@ const (
 
 type Trip struct {
 	route_id              *Route
-	service_id            string
+	service_id            *Calendar
 	trip_id               string
 	trip_headsign         string
 	trip_short_name       string
@@ -252,14 +252,14 @@ type FareAttribute struct {
 	currency_type     string
 	payment_method    PaymentMethod
 	transfers         FareTransfers
-	agency_id         string
+	agency_id         *Agency
 	transfer_duration int
 }
 
 // fare_rules.txt
 type FareRule struct {
 	fare_id        *FareAttribute
-	route_id       string
+	route_id       *Route
 	origin_id      string
 	destination_id string
 	contains_id    string

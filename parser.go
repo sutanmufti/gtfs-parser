@@ -242,7 +242,12 @@ func (gtfs *GTFS) ParseStop() error {
 	}
 
 	// Parse each row into a Stop
-	var stops []Stop
+	type stopRaw struct {
+		stop            Stop
+		parentStationID string
+		levelID         string
+	}
+	var rawStops []stopRaw
 	seen := make(map[string]int) // stop_id -> first seen line number
 	type duplicate struct {
 		stop_id string
@@ -289,10 +294,10 @@ func (gtfs *GTFS) ParseStop() error {
 			zone_id:             getCol(row, col, "zone_id"),
 			stop_url:            getCol(row, col, "stop_url"),
 			location_type:       LocationType(locType),
-			parent_station:      getCol(row, col, "parent_station"),
+			parent_station:      nil, // resolved in second pass
 			stop_timezone:       getCol(row, col, "stop_timezone"),
 			wheelchair_boarding: WheelchairBoarding(wheelchair),
-			level_id:            getCol(row, col, "level_id"),
+			level_id:            nil, // resolved in second pass
 			platform_code:       getCol(row, col, "platform_code"),
 		}
 
@@ -302,7 +307,11 @@ func (gtfs *GTFS) ParseStop() error {
 			seen[stop.stop_id] = lineNum
 		}
 
-		stops = append(stops, stop)
+		rawStops = append(rawStops, stopRaw{
+			stop:            stop,
+			parentStationID: getCol(row, col, "parent_station"),
+			levelID:         getCol(row, col, "level_id"),
+		})
 	}
 
 	if len(duplicates) > 0 {
@@ -311,6 +320,30 @@ func (gtfs *GTFS) ParseStop() error {
 			msg += fmt.Sprintf("\n  stop_id %q at line %d (first seen at line %d)", d.stop_id, d.line, seen[d.stop_id])
 		}
 		return fmt.Errorf("%s", msg)
+	}
+
+	// Build stop index for parent_station resolution
+	stops := make([]Stop, len(rawStops))
+	for i, rs := range rawStops {
+		stops[i] = rs.stop
+	}
+
+	// Second pass: resolve parent_station and level_id FKs
+	stopIndex := make(map[string]*Stop)
+	for i := range stops {
+		stopIndex[stops[i].stop_id] = &stops[i]
+	}
+	levelIndex := make(map[string]*Level)
+	for i := range gtfs.LevelData {
+		levelIndex[gtfs.LevelData[i].level_id] = &gtfs.LevelData[i]
+	}
+	for i, rs := range rawStops {
+		if rs.parentStationID != "" {
+			stops[i].parent_station = stopIndex[rs.parentStationID]
+		}
+		if rs.levelID != "" {
+			stops[i].level_id = levelIndex[rs.levelID]
+		}
 	}
 
 	gtfs.StopData = stops
