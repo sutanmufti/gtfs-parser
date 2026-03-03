@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 )
 
 func (gtfs *GTFS) ParseAgency() error {
@@ -41,6 +42,7 @@ func (gtfs *GTFS) ParseAgency() error {
 	if err != nil {
 		return err
 	}
+	headers = sanitizeHeaders(headers)
 	col := make(map[string]int)
 	for i, h := range headers {
 		col[h] = i
@@ -86,6 +88,13 @@ func (gtfs *GTFS) ParseAgency() error {
 
 	gtfs.AgencyData = agencies
 	return nil
+}
+
+func sanitizeHeaders(headers []string) []string {
+	if len(headers) > 0 {
+		headers[0] = strings.TrimPrefix(headers[0], "\uFEFF")
+	}
+	return headers
 }
 
 func getCol(row []string, col map[string]int, name string) string {
@@ -140,6 +149,7 @@ func (gtfs *GTFS) ParseStop() error {
 	if err != nil {
 		return err
 	}
+	headers = sanitizeHeaders(headers)
 	col := make(map[string]int)
 	for i, h := range headers {
 		col[h] = i
@@ -147,8 +157,13 @@ func (gtfs *GTFS) ParseStop() error {
 
 	// Parse each row into a Stop
 	var stops []Stop
-	seen := make(map[string]bool)
-	var duplicates []string
+	seen := make(map[string]int) // stop_id -> first seen line number
+	type duplicate struct {
+		stop_id string
+		line    int
+	}
+	var duplicates []duplicate
+	lineNum := 1 // start at 1 since header is line 1
 
 	for {
 		row, err := reader.Read()
@@ -158,6 +173,7 @@ func (gtfs *GTFS) ParseStop() error {
 		if err != nil {
 			return err
 		}
+		lineNum++
 
 		lat, err := parseOptionalFloat(getCol(row, col, "stop_lat"))
 		if err != nil {
@@ -194,17 +210,21 @@ func (gtfs *GTFS) ParseStop() error {
 			platform_code:       getCol(row, col, "platform_code"),
 		}
 
-		if seen[stop.stop_id] {
-			duplicates = append(duplicates, stop.stop_id)
+		if _, exists := seen[stop.stop_id]; exists {
+			duplicates = append(duplicates, duplicate{stop_id: stop.stop_id, line: lineNum})
 		} else {
-			seen[stop.stop_id] = true
+			seen[stop.stop_id] = lineNum
 		}
 
 		stops = append(stops, stop)
 	}
 
 	if len(duplicates) > 0 {
-		return fmt.Errorf("duplicate stop_id(s) found: %v", duplicates)
+		msg := "duplicate stop_id(s) found:"
+		for _, d := range duplicates {
+			msg += fmt.Sprintf("\n  stop_id %q at line %d (first seen at line %d)", d.stop_id, d.line, seen[d.stop_id])
+		}
+		return fmt.Errorf("%s", msg)
 	}
 
 	gtfs.StopData = stops
