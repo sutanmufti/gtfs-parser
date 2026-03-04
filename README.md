@@ -1,6 +1,11 @@
 # gtfs-parser
 
-![Test](https://github.com/sutanmufti/gtfs-parser/actions/workflows/test.yml/badge.svg)
+![Test](https://github.com/sutanmufti/gtfs-parser/actions/workflows/test.yml/badge.svg) 
+[![Go Reference](https://pkg.go.dev/badge/github.com/sutanmufti/gtfs-parser.svg)](https://pkg.go.dev/github.com/sutanmufti/gtfs-parser) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/sutanmufti/gtfs-parser)](https://goreportcard.com/report/github.com/sutanmufti/gtfs-parser) 
+[![GitHub release](https://img.shields.io/github/v/release/sutanmufti/gtfs-parser)](https://github.com/sutanmufti/gtfs-parser/releases)![License](https://img.shields.io/github/license/sutanmufti/gtfs-parser)![GitHub stars](https://img.shields.io/github/stars/sutanmufti/gtfs-parser)
+![GitHub issues](https://img.shields.io/github/issues/sutanmufti/gtfs-parser)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/sutanmufti/gtfs-parser)](https://github.com/sutanmufti/gtfs-parser/blob/main/go.mod)
 
 A Go library for parsing and validating [GTFS Schedule](https://gtfs.org/schedule/) zip files.
 
