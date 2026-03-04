@@ -89,19 +89,19 @@ const (
 // Route represents a transit route from routes.txt.
 // A route is a group of trips displayed to riders as a single service.
 type Route struct {
-	RouteID         string
-	AgencyID        *Agency
-	RouteShortName  string
-	RouteLongName   string
-	RouteDesc       string
-	RouteType       RouteType
-	RouteURL        string
-	RouteColor      string
-	RouteTextColor  string
-	RouteSortOrder  int
-	ContinuousPickup   PickupDropOffType
-	ContinuousDropOff  PickupDropOffType
-	NetworkID       string
+	RouteID           string
+	AgencyID          *Agency
+	RouteShortName    string
+	RouteLongName     string
+	RouteDesc         string
+	RouteType         RouteType
+	RouteURL          string
+	RouteColor        string
+	RouteTextColor    string
+	RouteSortOrder    int
+	ContinuousPickup  PickupDropOffType
+	ContinuousDropOff PickupDropOffType
+	NetworkID         string
 }
 
 // DirectionId indicates the direction of travel for a trip.
@@ -155,18 +155,18 @@ const (
 
 // StopTime represents a vehicle's arrival and departure at a stop from stop_times.txt.
 type StopTime struct {
-	TripID             *Trip
-	ArrivalTime        string
-	DepartureTime      string
-	StopID             *Stop
-	StopSequence       int
-	StopHeadsign       string
-	PickupType         PickupDropOffType
-	DropOffType        PickupDropOffType
-	ContinuousPickup   PickupDropOffType
-	ContinuousDropOff  PickupDropOffType
-	ShapeDistTraveled  float64
-	Timepoint          Timepoint
+	TripID            *Trip
+	ArrivalTime       string
+	DepartureTime     string
+	StopID            *Stop
+	StopSequence      int
+	StopHeadsign      string
+	PickupType        PickupDropOffType
+	DropOffType       PickupDropOffType
+	ContinuousPickup  PickupDropOffType
+	ContinuousDropOff PickupDropOffType
+	ShapeDistTraveled float64
+	Timepoint         Timepoint
 }
 
 // Calendar represents a regular weekly service schedule from calendar.txt.
@@ -312,18 +312,18 @@ const (
 
 // Pathway represents a connection between two locations within a station from pathways.txt.
 type Pathway struct {
-	PathwayID              string
-	FromStopID             *Stop
-	ToStopID               *Stop
-	PathwayMode            PathwayMode
-	IsBidirectional        int
-	Length                 float64
-	TraversalTime          int
-	StairCount             int
-	MaxSlope               float64
-	MinWidth               float64
-	SignpostedAs           string
-	ReversedSignpostedAs   string
+	PathwayID            string
+	FromStopID           *Stop
+	ToStopID             *Stop
+	PathwayMode          PathwayMode
+	IsBidirectional      int
+	Length               float64
+	TraversalTime        int
+	StairCount           int
+	MaxSlope             float64
+	MinWidth             float64
+	SignpostedAs         string
+	ReversedSignpostedAs string
 }
 
 // Level represents a floor level within a station from levels.txt.
@@ -350,13 +350,13 @@ type Attribution struct {
 
 // Translation represents a translated value for a field in the feed from translations.txt.
 type Translation struct {
-	TableName    string
-	FieldName    string
-	Language     string
-	Translation  string
-	RecordID     string
-	RecordSubID  string
-	FieldValue   string
+	TableName   string
+	FieldName   string
+	Language    string
+	Translation string
+	RecordID    string
+	RecordSubID string
+	FieldValue  string
 }
 
 // GTFS holds all parsed data from a GTFS feed zip file.
@@ -381,4 +381,10 @@ type GTFS struct {
 	LevelData      []Level
 	Attributions   []Attribution
 	Translations   []Translation
+
+	TripStopTimes     map[*Trip][]StopTime
+	RouteTrips        map[*Route][]*Trip
+	StopRoutes        map[*Stop][]*Route
+	TransfersFromStop map[*Stop][]Transfer
+	FrequenciesByTrip map[*Trip][]Frequency
 }
