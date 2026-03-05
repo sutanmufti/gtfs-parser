@@ -155,15 +155,7 @@ func main() {
 			pageCmd = cmd
 			pageStart = 0
 			pageOffset = 0
-			total := 0
-			switch cmd {
-			case "routes":
-				total = len(gtfs.RouteData)
-			case "trips":
-				total = len(gtfs.TripData)
-			case "stops":
-				total = len(gtfs.StopData)
-			}
+			total := totalFor(&gtfs, cmd)
 			n, hasMore := printPage(&gtfs, cmd, pageOffset)
 			pageOffset += n
 			if hasMore {
@@ -178,15 +170,7 @@ func main() {
 				fmt.Println(errorf("nothing to page — run routes, trips, or stops first"))
 				continue
 			}
-			total := 0
-			switch pageCmd {
-			case "routes":
-				total = len(gtfs.RouteData)
-			case "trips":
-				total = len(gtfs.TripData)
-			case "stops":
-				total = len(gtfs.StopData)
-			}
+			total := totalFor(&gtfs, pageCmd)
 			pageStart = pageOffset
 			n, hasMore := printPage(&gtfs, pageCmd, pageOffset)
 			pageOffset += n
@@ -206,15 +190,7 @@ func main() {
 				fmt.Println(errorf("already at the beginning"))
 				continue
 			}
-			total := 0
-			switch pageCmd {
-			case "routes":
-				total = len(gtfs.RouteData)
-			case "trips":
-				total = len(gtfs.TripData)
-			case "stops":
-				total = len(gtfs.StopData)
-			}
+			total := totalFor(&gtfs, pageCmd)
 			pageOffset = pageStart
 			pageStart = max(0, pageStart-maxList)
 			n, hasMore := printPage(&gtfs, pageCmd, pageStart)
