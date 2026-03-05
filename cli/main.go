@@ -227,8 +227,13 @@ func main() {
 				}
 				found = true
 				trips := gtfs.RouteTrips[r]
-				fmt.Printf("%s %s %s %s\n",
+				name := r.RouteLongName
+				if name == "" {
+					name = r.RouteShortName
+				}
+				fmt.Printf("%s %s %s %s %s\n",
 					header("Route"), id(r.RouteID),
+					label("("+name+")"),
 					label("—"), highlight(fmt.Sprintf("%d trip(s)", len(trips))),
 				)
 				for _, t := range trips {
