@@ -288,6 +288,7 @@ func main() {
 				}
 				found = true
 				routes := gtfs.StopRoutes[s]
+				transfers := gtfs.TransfersFromStop[s]
 				fmt.Printf("%s %s %s %s %s\n",
 					header("Stop"), id(s.StopID),
 					label("("+s.StopName+")"),
@@ -295,6 +296,19 @@ func main() {
 				)
 				for _, r := range routes {
 					fmt.Printf("  %s %s\n", label("route:"), id(r.RouteID))
+				}
+				if len(transfers) > 0 {
+					fmt.Printf("  %s\n", label(fmt.Sprintf("%d transfer(s):", len(transfers))))
+					for _, t := range transfers {
+						toStop := ""
+						if t.ToStopID != nil {
+							toStop = t.ToStopID.StopID
+						}
+						fmt.Printf("    %s %s %s %s\n",
+							label("→ stop:"), id(toStop),
+							label("type:"), highlight(fmt.Sprintf("%d", t.TransferType)),
+						)
+					}
 				}
 			}
 			if !found {
