@@ -20,10 +20,10 @@ jobs:
 
       - name: Build binaries
         run: |
-          GOOS=linux   GOARCH=amd64 go build -o gtfs-lin-amd       ./cli/
-          GOOS=darwin  GOARCH=amd64 go build -o gtfs-mac-amd     ./cli/
-          GOOS=darwin  GOARCH=arm64 go build -o gtfs-mac     ./cli/
-          GOOS=windows GOARCH=amd64 go build -o gtfs-cli.exe ./cli/
+          GOOS=linux   GOARCH=amd64 go build -o gtfs-linux-amd64       ./cli/
+          GOOS=darwin  GOARCH=amd64 go build -o gtfs-darwin-amd64     ./cli/
+          GOOS=darwin  GOARCH=arm64 go build -o gtfs-darwin-arm64     ./cli/
+          GOOS=windows GOARCH=amd64 go build -o gtfs-win-amd64.exe ./cli/
 
       - name: Create release
         uses: softprops/action-gh-release@v2
