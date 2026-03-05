@@ -4,6 +4,8 @@
 
 - **Welcome message** — startup now displays a banner with a short description of the tool and feed stats (routes, trips, stops)
 - **Transfer support** — `stop <id>` now shows outbound transfers, including the destination stop and transfer type, plus the routes serving that destination stop
+- **Richer route detail** — `route <id>` now shows route type, agency, and short name (when both short and long names are present)
+- **Richer trip detail** — `trip <id>` now shows the parent route, service ID, headsign, and direction
 
 ## Installation
 
