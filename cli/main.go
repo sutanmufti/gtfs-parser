@@ -305,9 +305,12 @@ func main() {
 							toStop = t.ToStopID.StopID
 						}
 						fmt.Printf("    %s %s %s %s\n",
-							label("→ stop:"), id(toStop),
+							label("-> stop:"), id(toStop),
 							label("type:"), highlight(fmt.Sprintf("%d", t.TransferType)),
 						)
+						for _, r := range gtfs.StopRoutes[t.ToStopID] {
+							fmt.Printf("            %s %s\n", label("route:"), highlight(r.RouteID))
+						}
 					}
 				}
 			}
