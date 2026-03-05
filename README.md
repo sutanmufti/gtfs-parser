@@ -17,6 +17,8 @@ A Go library for parsing and validating [GTFS Schedule](https://gtfs.org/schedul
 
 An interactive REPL for exploring a GTFS feed. Load a zip file and browse routes, trips, and stops with pagination — no code required.
 
+![gtfs-cli demo](gtfs.gif)
+
 ```sh
 go build -o gtfs-cli ./cli/
 ```
