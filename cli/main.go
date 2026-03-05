@@ -224,6 +224,17 @@ func main() {
 					label("("+name+")"),
 					label("—"), highlight(fmt.Sprintf("%d trip(s)", len(trips))),
 				)
+				if r.RouteShortName != "" && r.RouteLongName != "" {
+					fmt.Printf("  %s %s\n", label("short name:"), r.RouteShortName)
+				}
+				agencyName := ""
+				if r.AgencyID != nil {
+					agencyName = r.AgencyID.AgencyName
+				}
+				fmt.Printf("  %s %s  %s %s\n",
+					label("type:"), highlight(fmt.Sprintf("%d", r.RouteType)),
+					label("agency:"), agencyName,
+				)
 				for _, t := range trips {
 					fmt.Printf("  %s %s  %s %s\n",
 						label("trip:"), id(t.TripID),
@@ -249,9 +260,25 @@ func main() {
 				}
 				found = true
 				stopTimes := gtfs.TripStopTimes[t]
+				routeID := ""
+				if t.RouteID != nil {
+					routeID = t.RouteID.RouteID
+				}
+				serviceID := ""
+				if t.ServiceID != nil {
+					serviceID = t.ServiceID.ServiceID
+				}
 				fmt.Printf("%s %s %s %s\n",
 					header("Trip"), id(t.TripID),
 					label("—"), highlight(fmt.Sprintf("%d stop(s)", len(stopTimes))),
+				)
+				fmt.Printf("  %s %s  %s %s\n",
+					label("route:"), id(routeID),
+					label("service:"), serviceID,
+				)
+				fmt.Printf("  %s %s  %s %s\n",
+					label("headsign:"), t.TripHeadsign,
+					label("direction:"), highlight(fmt.Sprintf("%d", t.DirectionID)),
 				)
 				for _, st := range stopTimes {
 					stopID := ""
