@@ -189,7 +189,7 @@ An interactive REPL for exploring a GTFS feed is included under `./cli`.
 | `trips` | List all trips (first 20) |
 | `trip <id>` | Show stop times for a trip |
 | `stops` | List all stops (first 20) |
-| `stop <id>` | Show routes serving a stop |
+| `stop <id>` | Show routes serving a stop, and outbound transfers with their destination stop's routes |
 | `help` | Print command reference |
 | `quit` / `exit` | Exit |
 
