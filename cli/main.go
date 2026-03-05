@@ -332,7 +332,7 @@ func main() {
 			fmt.Printf("  %-30s list all trips (first %d)\n", commandf("trips"), maxList)
 			fmt.Printf("  %-30s show stop times for a trip\n", commandf("trip <id>"))
 			fmt.Printf("  %-30s list all stops (first %d)\n", commandf("stops"), maxList)
-			fmt.Printf("  %-30s show routes serving a stop\n", commandf("stop <id>"))
+			fmt.Printf("  %-30s show routes serving a stop and outbound transfers\n", commandf("stop <id>"))
 			fmt.Printf("  %-30s show next page of last list\n", commandf("next"))
 			fmt.Printf("  %-30s show previous page of last list\n", commandf("prev"))
 			fmt.Printf("  %-30s exit\n", commandf("quit / exit"))
