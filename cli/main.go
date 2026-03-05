@@ -99,6 +99,9 @@ func main() {
 	}
 	gtfs.Compile()
 
+	fmt.Println(colorf(cyan+bold, "gtfs-cli") + colorf(dim, " — GTFS feed explorer"))
+	fmt.Println(colorf(dim, "Browse routes, trips, and stops from any GTFS zip feed."))
+	fmt.Println()
 	fmt.Printf("Loaded %s  (%s routes  %s trips  %s stops)\n",
 		highlight(*file),
 		highlight(fmt.Sprintf("%d", len(gtfs.RouteData))),
