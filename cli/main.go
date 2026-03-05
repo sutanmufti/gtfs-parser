@@ -31,6 +31,18 @@ func errorf(s string) string       { return colorf(red, s) }
 func highlight(s string) string    { return colorf(green, s) }
 func commandf(s string) string     { return colorf(cyan, s) }
 
+func totalFor(gtfs *gtfsparser.GTFS, cmd string) int {
+	switch cmd {
+	case "routes":
+		return len(gtfs.RouteData)
+	case "trips":
+		return len(gtfs.TripData)
+	case "stops":
+		return len(gtfs.StopData)
+	}
+	return 0
+}
+
 // printPage prints up to maxList items from the given list command starting at
 // offset. Returns the number of items printed and whether more items remain.
 func printPage(gtfs *gtfsparser.GTFS, cmd string, offset int) (printed int, hasMore bool) {
