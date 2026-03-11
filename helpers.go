@@ -64,6 +64,7 @@ func getCol(row []string, col map[string]int, name string) string {
 }
 
 func parseOptionalFloat(s string) (*float64, error) {
+	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil, nil
 	}
