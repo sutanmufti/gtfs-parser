@@ -1,7 +1,10 @@
 # Release Notes
 
-## CLI Explorer
+## V1.1.4
 
+trims white space.
+
+## CLI Explorer
 - **Welcome message** — startup now displays a banner with a short description of the tool and feed stats (routes, trips, stops)
 - **Transfer support** — `stop <id>` now shows outbound transfers, including the destination stop and transfer type, plus the routes serving that destination stop
 - **Richer route detail** — `route <id>` now shows route type, agency, and short name (when both short and long names are present)
