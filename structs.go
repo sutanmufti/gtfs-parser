@@ -388,4 +388,9 @@ type GTFS struct {
 	TransfersFromStop map[*Stop][]Transfer
 	TransfersToStop   map[*Stop][]Transfer
 	FrequenciesByTrip map[*Trip][]Frequency
+
+	RouteStops    map[*Route][]*Stop
+	StopTripTimes map[*Stop][]StopTime
+
+	TripIndex map[string]*Trip // where key is trip_id
 }

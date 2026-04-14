@@ -53,4 +53,33 @@ func (gtfs *GTFS) Compile() {
 		t := f.TripID // already a *Trip from ParseFrequency
 		gtfs.FrequenciesByTrip[t] = append(gtfs.FrequenciesByTrip[t], f)
 	}
+
+	// 6. TripIndex: trip_id → *Trip
+	gtfs.TripIndex = make(map[string]*Trip)
+	for i := range gtfs.TripData {
+		t := &gtfs.TripData[i]
+		gtfs.TripIndex[t.TripID] = t
+	}
+
+	// 7. RouteStops: route → unique []*Stop (derived via RouteTrips + TripStopTimes)
+	gtfs.RouteStops = make(map[*Route][]*Stop)
+	for r, trips := range gtfs.RouteTrips {
+		seen := make(map[*Stop]bool)
+		for _, t := range trips {
+			for _, st := range gtfs.TripStopTimes[t] {
+				s := st.StopID
+				if !seen[s] {
+					seen[s] = true
+					gtfs.RouteStops[r] = append(gtfs.RouteStops[r], s)
+				}
+			}
+		}
+	}
+
+	// 8. StopTripTimes: stop → []StopTime
+	gtfs.StopTripTimes = make(map[*Stop][]StopTime)
+	for _, st := range gtfs.StopTimeData {
+		s := st.StopID
+		gtfs.StopTripTimes[s] = append(gtfs.StopTripTimes[s], st)
+	}
 }
