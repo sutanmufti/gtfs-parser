@@ -40,11 +40,16 @@ func (gtfs *GTFS) Compile() {
 		}
 	}
 
-	// 4. TransfersFromStop: stop → []Transfer
+	// 4. TransfersFromStop / TransfersToStop: stop → []Transfer
 	gtfs.TransfersFromStop = make(map[*Stop][]Transfer)
+	gtfs.TransfersToStop = make(map[*Stop][]Transfer)
 	for _, tr := range gtfs.TransferData {
-		s := tr.FromStopID // already a *Stop from ParseTransfer
-		gtfs.TransfersFromStop[s] = append(gtfs.TransfersFromStop[s], tr)
+		if tr.FromStopID != nil {
+			gtfs.TransfersFromStop[tr.FromStopID] = append(gtfs.TransfersFromStop[tr.FromStopID], tr)
+		}
+		if tr.ToStopID != nil {
+			gtfs.TransfersToStop[tr.ToStopID] = append(gtfs.TransfersToStop[tr.ToStopID], tr)
+		}
 	}
 
 	// 5. FrequenciesByTrip: trip → []Frequency
