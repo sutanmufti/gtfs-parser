@@ -768,6 +768,19 @@ func (gtfs *GTFS) ParseTransfer() error {
 	return nil
 }
 
+// ParseTransferReverse builds TransfersToStop from TransferData.
+// ParseTransfer must be called before ParseTransferReverse.
+func (gtfs *GTFS) ParseTransferReverse() error {
+	gtfs.TransfersToStop = make(map[*Stop][]Transfer)
+	for _, tr := range gtfs.TransferData {
+		if tr.ToStopID == nil {
+			continue
+		}
+		gtfs.TransfersToStop[tr.ToStopID] = append(gtfs.TransfersToStop[tr.ToStopID], tr)
+	}
+	return nil
+}
+
 // ParseCalendarDate reads calendar_dates.txt from the feed zip and populates CalendarDates.
 // The file is optional; no error is returned if it is absent.
 // ParseCalendar must be called before ParseCalendarDate.
