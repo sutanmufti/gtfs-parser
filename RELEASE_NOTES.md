@@ -1,5 +1,22 @@
 # Release Notes
 
+## V1.2.0
+
+### New lookup maps in `Compile()`
+
+Five new maps are now populated when `Compile()` is called:
+
+| Map | Type | Description |
+|---|---|---|
+| `TransfersToStop` | `map[*Stop][]Transfer` | Inbound transfers keyed by destination stop — reverse of `TransfersFromStop` |
+| `RouteStops` | `map[*Route][]*Stop` | All unique stops served by a route (derived via `RouteTrips` + `TripStopTimes`) |
+| `StopTripTimes` | `map[*Stop][]StopTime` | All stop-time records keyed by stop |
+| `TripIndex` | `map[string]*Trip` | Direct trip lookup by `trip_id` string |
+
+`TransfersFromStop` and `TransfersToStop` are now built in a single pass over `TransferData`.
+
+---
+
 ## V1.1.4
 
 trims white space.
